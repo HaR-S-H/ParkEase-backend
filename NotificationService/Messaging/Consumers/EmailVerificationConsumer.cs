@@ -1,11 +1,11 @@
 using System.Text;
 using System.Text.Json;
-using AuthService.Messaging.Messages;
-using AuthService.Services;
+using NotificationService.Messaging.Messages;
+using NotificationService.Services;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace AuthService.Messaging.Consumers
+namespace NotificationService.Messaging.Consumers
 {
     public class EmailVerificationConsumer : BackgroundService
     {
@@ -16,7 +16,10 @@ namespace AuthService.Messaging.Consumers
         private IModel? _channel;
         private string? _consumerTag;
 
-        public EmailVerificationConsumer(IConfiguration configuration, IServiceScopeFactory scopeFactory, ILogger<EmailVerificationConsumer> logger)
+        public EmailVerificationConsumer(
+            IConfiguration configuration,
+            IServiceScopeFactory scopeFactory,
+            ILogger<EmailVerificationConsumer> logger)
         {
             _configuration = configuration;
             _scopeFactory = scopeFactory;
@@ -27,18 +30,18 @@ namespace AuthService.Messaging.Consumers
         {
             var queueName = _configuration["RabbitMQ:Queues:EmailVerification"]
                 ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:EmailVerification.");
-            var factory = CreateFactory();
 
+            var factory = CreateFactory();
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
-            _channel.QueueDeclare(queueName, durable: true, exclusive: false, autoDelete: false);
+            _channel.QueueDeclare(queue: queueName, durable: true, exclusive: false, autoDelete: false);
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.Received += async (_, ea) =>
             {
                 if (stoppingToken.IsCancellationRequested)
                 {
-                    _logger.LogInformation("Skipping email verification message because service is stopping.");
+                    _logger.LogInformation("Skipping verification message because service is stopping.");
                     return;
                 }
 
@@ -48,25 +51,21 @@ namespace AuthService.Messaging.Consumers
                     var message = JsonSerializer.Deserialize<EmailVerificationRequestedMessage>(json);
                     if (message == null)
                     {
-                        _logger.LogWarning("Failed to deserialize email verification message");
+                        _logger.LogWarning("Failed to deserialize verification message.");
                         SafeNack(ea.DeliveryTag, requeue: false);
                         return;
                     }
 
-                    _logger.LogInformation($"Processing email verification for {message.Email}");
                     using var scope = _scopeFactory.CreateScope();
-                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                    await emailService.SendVerificationEmail(message.Email, message.FullName, message.Token);
-                    _logger.LogInformation($"Email verification sent to {message.Email}");
+                    var emailSender = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+
+                    await emailSender.SendVerificationEmail(message.Email, message.FullName, message.Token);
+
                     SafeAck(ea.DeliveryTag);
-                }
-                catch (ObjectDisposedException) when (stoppingToken.IsCancellationRequested)
-                {
-                    _logger.LogInformation("Email verification consumer is stopping; message processing halted.");
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Error processing email verification: {ex.Message}\n{ex.StackTrace}");
+                    _logger.LogError(ex, "Error processing verification email message.");
                     SafeNack(ea.DeliveryTag, requeue: !IsPermanentFailure(ex));
                 }
             };
@@ -79,7 +78,6 @@ namespace AuthService.Messaging.Consumers
             }
             catch (OperationCanceledException)
             {
-                // Expected during graceful shutdown.
             }
             finally
             {
@@ -109,11 +107,10 @@ namespace AuthService.Messaging.Consumers
         private static bool IsPermanentFailure(Exception ex)
         {
             var message = ex.ToString();
-
-            // Permanent auth/config failures should not be requeued forever.
             return message.Contains("Username and Password not accepted", StringComparison.OrdinalIgnoreCase)
                 || message.Contains("BadCredentials", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("authentication", StringComparison.OrdinalIgnoreCase);
+                || message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("configuration", StringComparison.OrdinalIgnoreCase);
         }
 
         private ConnectionFactory CreateFactory()

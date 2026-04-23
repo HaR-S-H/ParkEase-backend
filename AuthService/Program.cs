@@ -62,7 +62,6 @@ builder.Services.AddScoped<IEmailService, MailKitEmailService>();
 builder.Services.AddScoped<IStorageService, S3StorageService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
-builder.Services.AddHostedService<EmailVerificationConsumer>();
 builder.Services.AddHostedService<ProfilePictureUploadConsumer>();
 builder.Services.AddHostedService<ForgotPasswordConsumer>();
 builder.Services.AddScoped<IAuthService, AuthService.Services.AuthService>();
