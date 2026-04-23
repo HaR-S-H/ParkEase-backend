@@ -1,0 +1,277 @@
+using BookingService.Models;
+using BookingService.Models.Dtos;
+using BookingService.Repositories;
+
+namespace BookingService.Services
+{
+    public class BookingService : IBookingService
+    {
+        private readonly IBookingRepository _repo;
+        private readonly ISpotService _spotSvc;
+        private readonly IParkingLotService _lotSvc;
+        private readonly IPaymentService _paySvc;
+
+        public BookingService(
+            IBookingRepository repo,
+            ISpotService spotSvc,
+            IParkingLotService lotSvc,
+            IPaymentService paySvc)
+        {
+            _repo = repo;
+            _spotSvc = spotSvc;
+            _lotSvc = lotSvc;
+            _paySvc = paySvc;
+        }
+
+        public async Task<BookingResponse> CreateBooking(CreateBookingRequest request)
+        {
+            if (request.EndTime <= request.StartTime)
+            {
+                throw new AppException("End time must be after start time.", StatusCodes.Status400BadRequest);
+            }
+
+            var existing = await _repo.FindActiveBySpotId(request.SpotId);
+            if (existing != null)
+            {
+                throw new AppException("Spot already has an active booking.", StatusCodes.Status409Conflict);
+            }
+
+            var spot = await _spotSvc.GetSpotById(request.SpotId);
+            if (!string.Equals(spot.Status, "AVAILABLE", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AppException("Spot is not available for booking.", StatusCodes.Status409Conflict);
+            }
+
+            var lot = await _lotSvc.GetLotById(spot.LotId);
+            if (!lot.IsOpen || !lot.IsApproved)
+            {
+                throw new AppException("Parking lot is not open for booking.", StatusCodes.Status409Conflict);
+            }
+
+            if (lot.AvailableSpots <= 0)
+            {
+                throw new AppException("No available spots left in the selected parking lot.", StatusCodes.Status409Conflict);
+            }
+
+            await _spotSvc.ReserveSpot(request.SpotId);
+            try
+            {
+                await _lotSvc.DecrementAvailable(spot.LotId);
+            }
+            catch
+            {
+                await _spotSvc.ReleaseSpot(request.SpotId);
+                throw;
+            }
+
+            var booking = new Booking
+            {
+                UserId = request.UserId,
+                LotId = spot.LotId,
+                SpotId = request.SpotId,
+                VehiclePlate = request.VehiclePlate.Trim().ToUpperInvariant(),
+                VehicleType = request.VehicleType.Trim().ToUpperInvariant(),
+                BookingType = request.BookingType,
+                StartTime = request.StartTime,
+                EndTime = request.EndTime,
+                Status = BookingStatus.RESERVED,
+                TotalAmount = 0,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var created = await _repo.Create(booking);
+            return ToResponse(created);
+        }
+
+        public async Task<BookingResponse?> GetBookingById(int bookingId)
+        {
+            var booking = await _repo.FindByBookingId(bookingId);
+            return booking == null ? null : ToResponse(booking);
+        }
+
+        public async Task<List<BookingResponse>> GetBookingsByUser(int userId)
+        {
+            var bookings = await _repo.FindByUserId(userId);
+            return bookings.Select(ToResponse).ToList();
+        }
+
+        public async Task<List<BookingResponse>> GetBookingsByLot(int lotId)
+        {
+            var bookings = await _repo.FindByLotId(lotId);
+            return bookings.Select(ToResponse).ToList();
+        }
+
+        public async Task<List<BookingResponse>> GetActiveBookings()
+        {
+            var reserved = await _repo.FindByStatus(BookingStatus.RESERVED);
+            var active = await _repo.FindByStatus(BookingStatus.ACTIVE);
+
+            return reserved
+                .Concat(active)
+                .OrderByDescending(booking => booking.CreatedAt)
+                .Select(ToResponse)
+                .ToList();
+        }
+
+        public async Task CancelBooking(int bookingId)
+        {
+            var booking = await RequireBooking(bookingId);
+
+            if (booking.Status is BookingStatus.CANCELLED or BookingStatus.COMPLETED)
+            {
+                throw new AppException("Booking cannot be cancelled in current state.", StatusCodes.Status409Conflict);
+            }
+
+            if (booking.TotalAmount > 0)
+            {
+                await _paySvc.Refund(booking.BookingId, booking.UserId, booking.TotalAmount);
+            }
+
+            await _spotSvc.ReleaseSpot(booking.SpotId);
+            await _lotSvc.IncrementAvailable(booking.LotId);
+
+            booking.Status = BookingStatus.CANCELLED;
+            await _repo.Update(booking);
+        }
+
+        public async Task<BookingResponse> CheckIn(int bookingId)
+        {
+            var booking = await RequireBooking(bookingId);
+
+            if (booking.Status != BookingStatus.RESERVED)
+            {
+                throw new AppException("Only reserved bookings can be checked in.", StatusCodes.Status409Conflict);
+            }
+
+            await _spotSvc.OccupySpot(booking.SpotId);
+            booking.Status = BookingStatus.ACTIVE;
+            booking.CheckInTime = DateTime.UtcNow;
+            await _repo.Update(booking);
+
+            return ToResponse(booking);
+        }
+
+        public async Task<BookingResponse> CheckOut(int bookingId)
+        {
+            var booking = await RequireBooking(bookingId);
+
+            if (booking.Status != BookingStatus.ACTIVE)
+            {
+                throw new AppException("Only active bookings can be checked out.", StatusCodes.Status409Conflict);
+            }
+
+            var amount = await ComputeAmount(booking);
+            await _paySvc.Charge(booking.BookingId, booking.UserId, amount);
+
+            await _spotSvc.ReleaseSpot(booking.SpotId);
+            await _lotSvc.IncrementAvailable(booking.LotId);
+
+            booking.EndTime = DateTime.UtcNow;
+            booking.TotalAmount = amount;
+            booking.Status = BookingStatus.COMPLETED;
+            await _repo.Update(booking);
+
+            return ToResponse(booking);
+        }
+
+        public async Task<BookingResponse> ExtendBooking(int bookingId, DateTime newEndTime)
+        {
+            var booking = await RequireBooking(bookingId);
+
+            if (booking.Status is BookingStatus.CANCELLED or BookingStatus.COMPLETED)
+            {
+                throw new AppException("Completed or cancelled bookings cannot be extended.", StatusCodes.Status409Conflict);
+            }
+
+            if (newEndTime <= booking.EndTime)
+            {
+                throw new AppException("New end time must be later than current end time.", StatusCodes.Status400BadRequest);
+            }
+
+            booking.EndTime = newEndTime;
+            await _repo.Update(booking);
+
+            return ToResponse(booking);
+        }
+
+        public async Task<double> CalculateAmount(int bookingId)
+        {
+            var booking = await RequireBooking(bookingId);
+            return await ComputeAmount(booking);
+        }
+
+        public async Task<List<BookingResponse>> GetBookingHistory(int userId)
+        {
+            var bookings = await _repo.FindByUserId(userId);
+            return bookings
+                .Where(booking => booking.Status is BookingStatus.CANCELLED or BookingStatus.COMPLETED)
+                .OrderByDescending(booking => booking.CreatedAt)
+                .Select(ToResponse)
+                .ToList();
+        }
+
+        private async Task<Booking> RequireBooking(int bookingId)
+        {
+            return await _repo.FindByBookingId(bookingId)
+                ?? throw new AppException("Booking not found.", StatusCodes.Status404NotFound);
+        }
+
+        private async Task<double> ComputeAmount(Booking booking)
+        {
+            var spot = await _spotSvc.GetSpotById(booking.SpotId);
+
+            // Determine start and end times for fare calculation
+            DateTime startTime;
+            DateTime endTime;
+
+            if (booking.Status == BookingStatus.ACTIVE && booking.CheckInTime.HasValue)
+            {
+                // For active bookings being calculated mid-stay: use actual check-in to current time
+                startTime = booking.CheckInTime.Value;
+                endTime = DateTime.UtcNow;
+            }
+            else if (booking.Status == BookingStatus.ACTIVE)
+            {
+                // Fallback if CheckInTime missing (shouldn't happen)
+                startTime = booking.StartTime;
+                endTime = DateTime.UtcNow;
+            }
+            else
+            {
+                // For completed/reserved bookings: use full reservation window
+                startTime = booking.CheckInTime ?? booking.StartTime;
+                endTime = booking.EndTime;
+            }
+
+            // Calculate duration in hours
+            var durationHours = (endTime - startTime).TotalHours;
+
+            // Enforce minimum 1-hour charge
+            durationHours = Math.Max(durationHours, 1.0);
+
+            // Round up to 2 decimal places for fair charging
+            var roundedHours = Math.Ceiling(durationHours * 100) / 100;
+            return Math.Round(roundedHours * spot.PricePerHour, 2);
+        }
+
+        private static BookingResponse ToResponse(Booking booking)
+        {
+            return new BookingResponse
+            {
+                BookingId = booking.BookingId,
+                UserId = booking.UserId,
+                LotId = booking.LotId,
+                SpotId = booking.SpotId,
+                VehiclePlate = booking.VehiclePlate,
+                VehicleType = booking.VehicleType,
+                BookingType = booking.BookingType,
+                StartTime = booking.StartTime,
+                EndTime = booking.EndTime,
+                CheckInTime = booking.CheckInTime,
+                Status = booking.Status,
+                TotalAmount = booking.TotalAmount,
+                CreatedAt = booking.CreatedAt
+            };
+        }
+    }
+}
