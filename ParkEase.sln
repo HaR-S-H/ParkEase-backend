@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VehicleService", "VehicleSe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationService", "NotificationService\NotificationService.csproj", "{D554CA76-19DC-411B-9F22-4D023613F33E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AnalyticsService", "AnalyticsService\AnalyticsService.csproj", "{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -97,6 +99,18 @@ Global
 		{D554CA76-19DC-411B-9F22-4D023613F33E}.Release|x64.Build.0 = Release|Any CPU
 		{D554CA76-19DC-411B-9F22-4D023613F33E}.Release|x86.ActiveCfg = Release|Any CPU
 		{D554CA76-19DC-411B-9F22-4D023613F33E}.Release|x86.Build.0 = Release|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Debug|x64.Build.0 = Debug|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Debug|x86.Build.0 = Debug|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Release|x64.ActiveCfg = Release|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Release|x64.Build.0 = Release|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Release|x86.ActiveCfg = Release|Any CPU
+		{15DDBBB8-2F85-4BBC-831B-1593C844F5AE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
