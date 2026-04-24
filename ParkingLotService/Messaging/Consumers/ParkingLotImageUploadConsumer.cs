@@ -138,9 +138,14 @@ namespace ParkingLotService.Messaging.Consumers
             var url = _configuration["RabbitMQ:Url"]
                 ?? throw new InvalidOperationException("Missing RabbitMQ:Url.");
 
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                throw new InvalidOperationException($"Invalid RabbitMQ:Url value: {url}");
+            }
+
             return new ConnectionFactory
             {
-                Uri = new Uri(url),
+                Uri = uri,
                 DispatchConsumersAsync = true
             };
         }

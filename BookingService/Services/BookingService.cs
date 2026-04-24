@@ -36,13 +36,29 @@ namespace BookingService.Services
                 throw new AppException("Spot already has an active booking.", StatusCodes.Status409Conflict);
             }
 
-            var spot = await _spotSvc.GetSpotById(request.SpotId);
-            if (!string.Equals(spot.Status, "AVAILABLE", StringComparison.OrdinalIgnoreCase))
+            SpotDetails? spot = null;
+            try
+            {
+                spot = await _spotSvc.GetSpotById(request.SpotId);
+            }
+            catch (AppException ex) when (ex.StatusCode == StatusCodes.Status502BadGateway)
+            {
+                // ParkingSpotService is optional for local dev until the service is restored.
+                spot = null;
+            }
+
+            if (spot != null && !string.Equals(spot.Status, "AVAILABLE", StringComparison.OrdinalIgnoreCase))
             {
                 throw new AppException("Spot is not available for booking.", StatusCodes.Status409Conflict);
             }
 
-            var lot = await _lotSvc.GetLotById(spot.LotId);
+            var lotId = request.LotId > 0 ? request.LotId : spot?.LotId ?? 0;
+            if (lotId <= 0)
+            {
+                throw new AppException("A valid lot is required for booking.", StatusCodes.Status400BadRequest);
+            }
+
+            var lot = await _lotSvc.GetLotById(lotId);
             if (!lot.IsOpen || !lot.IsApproved)
             {
                 throw new AppException("Parking lot is not open for booking.", StatusCodes.Status409Conflict);
@@ -53,21 +69,29 @@ namespace BookingService.Services
                 throw new AppException("No available spots left in the selected parking lot.", StatusCodes.Status409Conflict);
             }
 
-            await _spotSvc.ReserveSpot(request.SpotId);
+            if (spot != null)
+            {
+                await _spotSvc.ReserveSpot(request.SpotId);
+            }
+
             try
             {
-                await _lotSvc.DecrementAvailable(spot.LotId);
+                await _lotSvc.DecrementAvailable(lotId);
             }
             catch
             {
-                await _spotSvc.ReleaseSpot(request.SpotId);
+                if (spot != null)
+                {
+                    await _spotSvc.ReleaseSpot(request.SpotId);
+                }
+
                 throw;
             }
 
             var booking = new Booking
             {
                 UserId = request.UserId,
-                LotId = spot.LotId,
+                LotId = lotId,
                 SpotId = request.SpotId,
                 VehiclePlate = request.VehiclePlate.Trim().ToUpperInvariant(),
                 VehicleType = request.VehicleType.Trim().ToUpperInvariant(),
@@ -127,7 +151,15 @@ namespace BookingService.Services
                 await _paySvc.Refund(booking.BookingId, booking.UserId, booking.TotalAmount);
             }
 
-            await _spotSvc.ReleaseSpot(booking.SpotId);
+            try
+            {
+                await _spotSvc.ReleaseSpot(booking.SpotId);
+            }
+            catch (AppException ex) when (ex.StatusCode == StatusCodes.Status502BadGateway)
+            {
+                // Ignore for local setups without ParkingSpotService.
+            }
+
             await _lotSvc.IncrementAvailable(booking.LotId);
 
             booking.Status = BookingStatus.CANCELLED;
@@ -143,7 +175,15 @@ namespace BookingService.Services
                 throw new AppException("Only reserved bookings can be checked in.", StatusCodes.Status409Conflict);
             }
 
-            await _spotSvc.OccupySpot(booking.SpotId);
+            try
+            {
+                await _spotSvc.OccupySpot(booking.SpotId);
+            }
+            catch (AppException ex) when (ex.StatusCode == StatusCodes.Status502BadGateway)
+            {
+                // Ignore for local setups without ParkingSpotService.
+            }
+
             booking.Status = BookingStatus.ACTIVE;
             booking.CheckInTime = DateTime.UtcNow;
             await _repo.Update(booking);
@@ -163,7 +203,15 @@ namespace BookingService.Services
             var amount = await ComputeAmount(booking);
             await _paySvc.Charge(booking.BookingId, booking.UserId, amount);
 
-            await _spotSvc.ReleaseSpot(booking.SpotId);
+            try
+            {
+                await _spotSvc.ReleaseSpot(booking.SpotId);
+            }
+            catch (AppException ex) when (ex.StatusCode == StatusCodes.Status502BadGateway)
+            {
+                // Ignore for local setups without ParkingSpotService.
+            }
+
             await _lotSvc.IncrementAvailable(booking.LotId);
 
             booking.EndTime = DateTime.UtcNow;
@@ -218,7 +266,22 @@ namespace BookingService.Services
 
         private async Task<double> ComputeAmount(Booking booking)
         {
-            var spot = await _spotSvc.GetSpotById(booking.SpotId);
+            SpotDetails? spot = null;
+            try
+            {
+                spot = await _spotSvc.GetSpotById(booking.SpotId);
+            }
+            catch (AppException ex) when (ex.StatusCode == StatusCodes.Status502BadGateway)
+            {
+                // Default hourly price keeps checkout working during local development.
+                spot = new SpotDetails
+                {
+                    SpotId = booking.SpotId,
+                    LotId = booking.LotId,
+                    Status = "AVAILABLE",
+                    PricePerHour = 50
+                };
+            }
 
             // Determine start and end times for fare calculation
             DateTime startTime;
