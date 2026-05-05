@@ -23,7 +23,7 @@ namespace ParkingLotService.Models
         public double Longitude { get; set; }
 
         [Required]
-        [Range(1, int.MaxValue)]
+        [Range(0, int.MaxValue)]
         public int TotalSpots { get; set; }
 
         [Required]

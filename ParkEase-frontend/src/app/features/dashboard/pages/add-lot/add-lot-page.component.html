@@ -1,0 +1,100 @@
+<div class="dashboard-layout">
+  <main class="main-content">
+    <header class="header glass-panel">
+      <div class="header-left">
+        <a routerLink="/dashboard/manager" class="back-btn">
+          <span>&larr;</span> Back
+        </a>
+        <h1>Register New Parking Lot</h1>
+      </div>
+    </header>
+
+    <div class="content-area">
+      <div class="form-container glass-panel">
+        <div class="alert error" *ngIf="errorMessage()">
+          {{ errorMessage() }}
+        </div>
+
+        <form (ngSubmit)="onSubmit()" class="lot-form">
+          <div class="form-section">
+            <h3>Basic Details</h3>
+            <div class="form-group">
+              <label>Lot Name *</label>
+              <input type="text" [ngModel]="name()" (ngModelChange)="name.set($event)" name="name" required class="input-field" placeholder="e.g. Central City Parking">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>City *</label>
+                <input type="text" [ngModel]="city()" (ngModelChange)="city.set($event)" name="city" required class="input-field" placeholder="e.g. New York">
+              </div>
+              <div class="form-group flex-2">
+                <label>Address *</label>
+                <input type="text" [ngModel]="address()" (ngModelChange)="address.set($event)" name="address" required class="input-field" placeholder="123 Main St">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Location & Capacity</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Latitude *</label>
+                <input type="number" step="any" [ngModel]="latitude()" (ngModelChange)="latitude.set($event)" name="lat" required class="input-field" placeholder="40.7128">
+              </div>
+              <div class="form-group">
+                <label>Longitude *</label>
+                <input type="number" step="any" [ngModel]="longitude()" (ngModelChange)="longitude.set($event)" name="lng" required class="input-field" placeholder="-74.0060">
+              </div>
+              <div class="form-group">
+                <label>Total Spots *</label>
+                <input type="number" [ngModel]="totalSpots()" (ngModelChange)="totalSpots.set($event)" name="spots" required class="input-field" placeholder="100">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Operations</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Opening Time *</label>
+                <input type="time" [ngModel]="openTime()" (ngModelChange)="openTime.set($event)" name="open" required class="input-field">
+              </div>
+              <div class="form-group">
+                <label>Closing Time *</label>
+                <input type="time" [ngModel]="closeTime()" (ngModelChange)="closeTime.set($event)" name="close" required class="input-field">
+              </div>
+              <div class="form-group checkbox-group">
+                <label>
+                  <input type="checkbox" [ngModel]="isOpen()" (ngModelChange)="isOpen.set($event)" name="isOpen">
+                  Currently Open for business
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Media</h3>
+            <div class="form-group">
+              <label>Lot Image (Optional)</label>
+              <div class="file-upload">
+                <input type="file" id="imageFile" (change)="onImageSelected($event)" accept="image/*" class="file-input">
+                <label for="imageFile" class="file-label">
+                  <span class="icon">📷</span>
+                  <span class="text">{{ selectedImage() ? selectedImage()!.name : 'Choose an image to upload...' }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <a routerLink="/dashboard/manager" class="btn-outline">Cancel</a>
+            <button type="submit" class="btn-primary" [disabled]="loading()">
+              {{ loading() ? 'Submitting...' : 'Register Lot' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>

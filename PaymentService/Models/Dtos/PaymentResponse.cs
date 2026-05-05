@@ -11,6 +11,8 @@ namespace PaymentService.Models.Dtos
         public string Mode { get; set; } = string.Empty;
         public string TransactionId { get; set; } = string.Empty;
         public string Currency { get; set; } = string.Empty;
+        public string? CheckoutKey { get; set; }
+        public string? CheckoutData { get; set; }
         public DateTime PaidAt { get; set; }
         public DateTime? RefundedAt { get; set; }
         public string Description { get; set; } = string.Empty;

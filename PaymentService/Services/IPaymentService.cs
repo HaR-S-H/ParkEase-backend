@@ -9,7 +9,7 @@ namespace PaymentService.Services
         Task<List<PaymentResponse>> GetByUser(int userId);
         Task<PaymentResponse> RefundPayment(int bookingId, string? reason = null);
         Task<string> GetPaymentStatus(int bookingId);
-        Task UpdateStatus(int bookingId, string status);
+        Task UpdateStatus(int bookingId, string status, string? transactionId = null);
         Task<PaymentReceipt> GenerateReceipt(int bookingId);
         Task<double> GetTotalRevenue(int lotId);
         Task<List<PaymentResponse>> GetTransactionHistory(int userId);

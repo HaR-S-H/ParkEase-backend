@@ -70,9 +70,9 @@ namespace PaymentService.Controllers
         }
 
         [HttpPut("status/{bookingId:int}/{status}")]
-        public async Task<IActionResult> UpdateStatus([FromRoute] int bookingId, [FromRoute] string status)
+        public async Task<IActionResult> UpdateStatus([FromRoute] int bookingId, [FromRoute] string status, [FromQuery] string? transactionId = null)
         {
-            await _payService.UpdateStatus(bookingId, status);
+            await _payService.UpdateStatus(bookingId, status, transactionId);
             return NoContent();
         }
 

@@ -26,10 +26,10 @@ namespace ParkingLotService.Services
 
         public async Task<ParkingLotResponse> CreateLot(CreateParkingLotRequest request)
         {
-            if (request.AvailableSpots.HasValue && request.AvailableSpots.Value > request.TotalSpots)
-            {
-                throw new AppException("Available spots cannot exceed total spots.", StatusCodes.Status400BadRequest);
-            }
+            // if (request.AvailableSpots.HasValue && request.AvailableSpots.Value > request.TotalSpots)
+            // {
+            //     throw new AppException("Available spots cannot exceed total spots.", StatusCodes.Status400BadRequest);
+            // }
 
             var parkingLot = new ParkingLot
             {
@@ -38,13 +38,13 @@ namespace ParkingLotService.Services
                 City = request.City.Trim(),
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
-                TotalSpots = request.TotalSpots,
-                AvailableSpots = request.AvailableSpots ?? request.TotalSpots,
                 ManagerId = request.ManagerId,
                 IsOpen = request.IsOpen,
                 IsApproved = request.IsApproved,
                 OpenTime = request.OpenTime,
                 CloseTime = request.CloseTime,
+                TotalSpots = request.TotalSpots,
+                AvailableSpots = request.AvailableSpots,
                 ImageUrl = null,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -245,7 +245,7 @@ namespace ParkingLotService.Services
 
                 if (lot.AvailableSpots < quantity)
                 {
-                    throw new AppException("Not enough available spots.", StatusCodes.Status409Conflict);
+                    throw new AppException($"Not enough available spots. (Available: {lot.AvailableSpots}, Requested: {quantity})", StatusCodes.Status409Conflict);
                 }
 
                 lot.AvailableSpots -= quantity;
@@ -280,7 +280,31 @@ namespace ParkingLotService.Services
             });
         }
 
-        public async Task<List<ParkingLotResponse>> SearchLots(string query)
+        public async Task<ParkingLotResponse> IncrementTotalSpots(int lotId, int quantity = 1)
+        {
+            if (quantity <= 0)
+            {
+                throw new AppException("Quantity must be greater than zero.", StatusCodes.Status400BadRequest);
+            }
+
+            return await ExecuteWithConcurrencyRetry(async () =>
+            {
+                var lot = await RequireLot(lotId);
+
+                lot.TotalSpots += quantity;
+                lot.UpdatedAt = DateTime.UtcNow;
+
+                if (lot.AvailableSpots > lot.TotalSpots)
+                {
+                    lot.AvailableSpots = lot.TotalSpots;
+                }
+
+                await _repository.Update(lot);
+                return ToResponse(lot);
+            });
+        }
+
+        public async Task<List<ParkingLotResponse>> SearchLots(string? query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
@@ -296,6 +320,12 @@ namespace ParkingLotService.Services
                 .Where(lot => lot.IsApproved)
                 .Select(ToResponse)
                 .ToList();
+        }
+
+        public async Task<List<ParkingLotResponse>> GetAllLotsForAdmin()
+        {
+            var lots = await _repository.GetAll();
+            return lots.Select(ToResponse).ToList();
         }
 
         private async Task<ParkingLot> RequireLot(int lotId)
@@ -323,7 +353,7 @@ namespace ParkingLotService.Services
                 }
             }
 
-            throw new AppException("The parking lot was updated by another operation. Please retry.", StatusCodes.Status409Conflict);
+            throw new AppException("Concurrency conflict: The parking lot was updated by another operation. Please retry.", StatusCodes.Status409Conflict);
         }
 
         private static ParkingLotResponse ToResponse(ParkingLot parkingLot)
@@ -336,13 +366,13 @@ namespace ParkingLotService.Services
                 City = parkingLot.City,
                 Latitude = parkingLot.Latitude,
                 Longitude = parkingLot.Longitude,
-                TotalSpots = parkingLot.TotalSpots,
-                AvailableSpots = parkingLot.AvailableSpots,
                 ManagerId = parkingLot.ManagerId,
                 IsOpen = parkingLot.IsOpen,
                 IsApproved = parkingLot.IsApproved,
                 OpenTime = parkingLot.OpenTime,
                 CloseTime = parkingLot.CloseTime,
+                TotalSpots = parkingLot.TotalSpots,
+                AvailableSpots = parkingLot.AvailableSpots,
                 ImageUrl = parkingLot.ImageUrl,
                 CreatedAt = parkingLot.CreatedAt,
                 UpdatedAt = parkingLot.UpdatedAt

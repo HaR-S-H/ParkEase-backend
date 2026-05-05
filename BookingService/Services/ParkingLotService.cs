@@ -37,34 +37,38 @@ namespace BookingService.Services
 
         public async Task DecrementAvailable(int lotId, int quantity = 1)
         {
-            var response = await _httpClient.PutAsync($"/api/v1/lots/{lotId}/available/decrement?quantity={quantity}", null);
-            EnsureSuccess(response, "Failed to decrement lot availability.");
+            var response = await _httpClient.PutAsJsonAsync($"/api/v1/lots/{lotId}/available/decrement?quantity={quantity}", new { });
+            await EnsureSuccess(response, "Failed to decrement lot availability.");
         }
 
         public async Task IncrementAvailable(int lotId, int quantity = 1)
         {
-            var response = await _httpClient.PutAsync($"/api/v1/lots/{lotId}/available/increment?quantity={quantity}", null);
-            EnsureSuccess(response, "Failed to increment lot availability.");
+            var response = await _httpClient.PutAsJsonAsync($"/api/v1/lots/{lotId}/available/increment?quantity={quantity}", new { });
+            await EnsureSuccess(response, "Failed to increment lot availability.");
         }
 
-        private static void EnsureSuccess(HttpResponseMessage response, string message)
+        private static async Task EnsureSuccess(HttpResponseMessage response, string defaultMessage)
         {
             if (response.IsSuccessStatusCode)
             {
                 return;
             }
 
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            var errorContent = await response.Content.ReadAsStringAsync();
+            var message = defaultMessage;
+
+            try
             {
-                throw new AppException("Parking lot not found.", StatusCodes.Status404NotFound);
+                var errorObj = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.Nodes.JsonNode>(errorContent);
+                message = errorObj?["message"]?.ToString() ?? errorContent;
+            }
+            catch
+            {
+                if (!string.IsNullOrWhiteSpace(errorContent)) message = errorContent;
             }
 
-            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-            {
-                throw new AppException("Parking lot availability conflict.", StatusCodes.Status409Conflict);
-            }
-
-            throw new AppException(message, StatusCodes.Status502BadGateway);
+            var statusCode = (int)response.StatusCode;
+            throw new AppException(message, statusCode);
         }
     }
 }

@@ -20,7 +20,12 @@ namespace NotificationService.Services
             var body = $"<p>Hi {fullName},</p><p>Please verify your email by clicking the link below:</p><p><a href=\"{verificationUrl}\">Verify Email</a></p><p>If you did not create this account, please ignore this email.</p>";
             return SendGenericEmail(email, subject, body);
         }
-
+        public Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword)
+        {
+            var subject = "Password Reset - Temporary Password";
+            var body = $"<p>Hi {fullName},</p><p>Your temporary password is: <strong>{temporaryPassword}</strong></p><p>Please log in and change your password immediately for security.</p>";
+            return SendGenericEmail(email, subject, body);
+        }
         public async Task SendGenericEmail(string email, string subject, string htmlBody)
         {
             var message = new MimeMessage();

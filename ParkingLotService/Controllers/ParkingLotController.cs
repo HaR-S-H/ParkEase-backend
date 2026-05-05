@@ -20,7 +20,7 @@ namespace ParkingLotService.Controllers
         [Authorize(Roles = "MANAGER")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> CreateLot([FromForm] CreateParkingLotRequest request)
-        {
+        {  
             var response = await _parkingLotService.CreateLot(request);
             return CreatedAtAction(nameof(GetLotById), new { lotId = response.LotId }, response);
         }
@@ -53,19 +53,41 @@ namespace ParkingLotService.Controllers
             return Ok(response);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> GetAllLots()
+        {
+            var response = await _parkingLotService.SearchLots(null);
+            return Ok(response);
+        }
+
+        [HttpGet("admin-all")]
+        [Authorize]
+        public async Task<IActionResult> GetAllLotsForAdmin()
+        {
+            var response = await _parkingLotService.GetAllLotsForAdmin();
+            return Ok(response);
+        }
+
         [HttpGet("search")]
-        public async Task<IActionResult> SearchLots([FromQuery] string query)
+        public async Task<IActionResult> SearchLots([FromQuery] string? query)
         {
             var response = await _parkingLotService.SearchLots(query);
             return Ok(response);
         }
 
         [HttpPut("{lotId:int}")]
-        [Authorize(Roles = "MANAGER")]
+        [Authorize(Roles = "MANAGER,ADMIN")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateLot([FromRoute] int lotId, [FromForm] UpdateParkingLotRequest request)
         {
             var response = await _parkingLotService.UpdateLot(lotId, request);
+            return Ok(response);
+        }
+
+        [HttpPut("admin/approve/{lotId:int}")]
+        public async Task<IActionResult> ApproveLot([FromRoute] int lotId)
+        {
+            var response = await _parkingLotService.ApproveLot(lotId);
             return Ok(response);
         }
 
@@ -74,6 +96,27 @@ namespace ParkingLotService.Controllers
         public async Task<IActionResult> ToggleOpen([FromRoute] int lotId)
         {
             var response = await _parkingLotService.ToggleOpen(lotId);
+            return Ok(response);
+        }
+
+        [HttpPut("{lotId:int}/available/decrement")]
+        public async Task<IActionResult> DecrementAvailable([FromRoute] int lotId, [FromQuery] int quantity = 1)
+        {
+            var response = await _parkingLotService.DecrementAvailable(lotId, quantity);
+            return Ok(response);
+        }
+
+        [HttpPut("{lotId:int}/available/increment")]
+        public async Task<IActionResult> IncrementAvailable([FromRoute] int lotId, [FromQuery] int quantity = 1)
+        {
+            var response = await _parkingLotService.IncrementAvailable(lotId, quantity);
+            return Ok(response);
+        }
+
+        [HttpPut("{lotId:int}/total/increment")]
+        public async Task<IActionResult> IncrementTotalSpots([FromRoute] int lotId, [FromQuery] int quantity = 1)
+        {
+            var response = await _parkingLotService.IncrementTotalSpots(lotId, quantity);
             return Ok(response);
         }
 

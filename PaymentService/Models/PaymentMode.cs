@@ -5,6 +5,8 @@ namespace PaymentService.Models
         CARD,
         UPI,
         WALLET,
-        CASH
+        CASH,
+        STRIPE,
+        RAZORPAY
     }
 }

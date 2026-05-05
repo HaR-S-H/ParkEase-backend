@@ -20,11 +20,11 @@ namespace ParkingLotService.Models.Dtos
         [Range(-180, 180)]
         public double Longitude { get; set; }
 
-        [Range(1, int.MaxValue)]
-        public int TotalSpots { get; set; }
+        [Range(0, int.MaxValue)]
+        public int TotalSpots { get; set; } = 0;
 
         [Range(0, int.MaxValue)]
-        public int? AvailableSpots { get; set; }
+        public int AvailableSpots { get; set; } = 0;
 
         [Required]
         public int ManagerId { get; set; }

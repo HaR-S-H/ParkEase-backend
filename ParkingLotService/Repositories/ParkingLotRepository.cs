@@ -16,7 +16,6 @@ namespace ParkingLotService.Repositories
         public Task<ParkingLot?> FindByLotId(int lotId)
         {
             return _context.ParkingLots
-                .AsNoTracking()
                 .FirstOrDefaultAsync(lot => lot.LotId == lotId);
         }
 
@@ -85,6 +84,13 @@ namespace ParkingLotService.Repositories
                 .ToListAsync();
         }
 
+        public Task<List<ParkingLot>> GetAll()
+        {
+            return _context.ParkingLots
+                .AsNoTracking()
+                .ToListAsync();
+        }
+
         public async Task<ParkingLot> Create(ParkingLot parkingLot)
         {
             _context.ParkingLots.Add(parkingLot);
@@ -94,7 +100,11 @@ namespace ParkingLotService.Repositories
 
         public async Task Update(ParkingLot parkingLot)
         {
-            _context.ParkingLots.Update(parkingLot);
+            var entry = _context.Entry(parkingLot);
+            if (entry.State == EntityState.Detached)
+            {
+                _context.ParkingLots.Update(parkingLot);
+            }
             await _context.SaveChangesAsync();
         }
 

@@ -66,17 +66,8 @@ namespace BookingService.Services
                 return;
             }
 
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                throw new AppException("Parking spot not found.", StatusCodes.Status404NotFound);
-            }
-
-            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
-            {
-                throw new AppException("Parking spot state conflict.", StatusCodes.Status409Conflict);
-            }
-
-            throw new AppException(message, StatusCodes.Status502BadGateway);
+            var statusCode = (int)response.StatusCode;
+            throw new AppException($"{message} (Status: {statusCode})", statusCode);
         }
     }
 }

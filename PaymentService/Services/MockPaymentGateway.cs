@@ -4,19 +4,26 @@ namespace PaymentService.Services
 {
     public class MockPaymentGateway : IPaymentGateway
     {
-        public Task<string> Charge(Payment payment)
+        public Task<GatewayResponse> Charge(Payment payment)
         {
             var prefix = payment.Mode switch
             {
-                PaymentMode.CARD => "STRIPE",
+                PaymentMode.STRIPE => "STRIPE",
+                PaymentMode.RAZORPAY => "RAZORPAY",
                 PaymentMode.UPI => "RAZORPAY",
                 PaymentMode.WALLET => "RAZORPAY",
                 PaymentMode.CASH => "CASH",
                 _ => "PAY"
             };
 
-            var transactionId = $"{prefix}-{Guid.NewGuid():N}";
-            return Task.FromResult(transactionId);
+            var transactionId = $"{prefix}-MOCK-{Guid.NewGuid():N}";
+            
+            return Task.FromResult(new GatewayResponse
+            {
+                TransactionId = transactionId,
+                CheckoutKey = "mock_key",
+                CheckoutData = "{\"mock\": true}"
+            });
         }
 
         public Task Refund(Payment payment)

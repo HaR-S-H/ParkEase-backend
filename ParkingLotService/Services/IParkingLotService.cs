@@ -17,6 +17,8 @@ namespace ParkingLotService.Services
         Task DeleteLot(int lotId);
         Task<ParkingLotResponse> DecrementAvailable(int lotId, int quantity = 1);
         Task<ParkingLotResponse> IncrementAvailable(int lotId, int quantity = 1);
-        Task<List<ParkingLotResponse>> SearchLots(string query);
+        Task<ParkingLotResponse> IncrementTotalSpots(int lotId, int quantity = 1);
+        Task<List<ParkingLotResponse>> SearchLots(string? query);
+        Task<List<ParkingLotResponse>> GetAllLotsForAdmin();
     }
 }

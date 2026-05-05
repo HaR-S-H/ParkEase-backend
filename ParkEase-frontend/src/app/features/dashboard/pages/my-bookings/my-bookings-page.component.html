@@ -1,0 +1,93 @@
+<div class="dashboard-layout driver-layout">
+  <header class="driver-header glass-panel">
+    <div class="brand">
+      <div class="logo-circle"></div>
+      <h2>ParkEase</h2>
+    </div>
+
+    <nav class="nav-links">
+      <a routerLink="/dashboard/driver" class="nav-link">Find Parking</a>
+      <a routerLink="/dashboard/driver/bookings" class="nav-link active">My Bookings</a>
+      <a routerLink="/dashboard/driver/vehicles" class="nav-link">My Vehicles</a>
+    </nav>
+  </header>
+
+  <main class="content-area">
+    <div class="hero-section">
+      <h1>My Bookings</h1>
+      <p>Manage your active reservations and view your parking history.</p>
+    </div>
+
+    <div *ngIf="loading()" class="loader-container">
+      <div class="spinner"></div>
+      <p>Loading your bookings...</p>
+    </div>
+
+    <div *ngIf="error()" class="alert error">
+      {{ error() }}
+    </div>
+
+    <div *ngIf="!loading() && bookings().length === 0" class="empty-state glass-panel">
+      <div class="icon">🎟️</div>
+      <h3>No Bookings Yet</h3>
+      <p>You don't have any parking reservations.</p>
+      <a routerLink="/dashboard/driver" class="btn-primary mt-4 inline-block">Find a Parking Spot</a>
+    </div>
+
+    <div class="bookings-grid" *ngIf="!loading() && bookings().length > 0">
+      <div class="booking-card glass-panel" *ngFor="let booking of bookings()">
+        
+        <div class="booking-header">
+          <div class="status-badge" 
+               [class.reserved]="booking.status === BookingStatus.RESERVED"
+               [class.active]="booking.status === BookingStatus.ACTIVE"
+               [class.completed]="booking.status === BookingStatus.COMPLETED"
+               [class.cancelled]="booking.status === BookingStatus.CANCELLED">
+            {{ BookingStatus[booking.status] }}
+          </div>
+          <div class="booking-id">#{{ booking.bookingId }}</div>
+        </div>
+
+        <div class="booking-body">
+          <div class="detail-row">
+            <span class="label">Time</span>
+            <span class="value">{{ booking.startTime | date:'short' }} - {{ booking.endTime | date:'shortTime' }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Vehicle</span>
+            <span class="value">{{ booking.vehiclePlate }} ({{ booking.vehicleType }})</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Spot ID</span>
+            <span class="value">{{ booking.spotId }}</span>
+          </div>
+          <div class="detail-row" *ngIf="booking.totalAmount > 0">
+            <span class="label">Amount</span>
+            <span class="value price">${{ booking.totalAmount | number:'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <div class="booking-actions">
+          <button class="btn-primary" 
+                  *ngIf="booking.status === BookingStatus.RESERVED"
+                  (click)="checkIn(booking.bookingId)">
+            Check In
+          </button>
+          
+          <button class="btn-primary checkout" 
+                  *ngIf="booking.status === BookingStatus.ACTIVE"
+                  (click)="checkOut(booking.bookingId)">
+            Check Out
+          </button>
+
+          <button class="btn-outline danger" 
+                  *ngIf="booking.status === BookingStatus.RESERVED"
+                  (click)="cancelBooking(booking.bookingId)">
+            Cancel
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </main>
+</div>

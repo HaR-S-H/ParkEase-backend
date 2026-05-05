@@ -12,6 +12,7 @@ namespace ParkingLotService.Repositories
         Task<List<ParkingLot>> FindByAvailableSpotsGreaterThan(int availableSpots);
         Task<int> CountByCity(string city);
         Task<List<ParkingLot>> SearchLots(string query);
+        Task<List<ParkingLot>> GetAll();
         Task<ParkingLot> Create(ParkingLot parkingLot);
         Task Update(ParkingLot parkingLot);
         Task<bool> UpdateImageUrl(int lotId, string imageUrl);

@@ -32,7 +32,8 @@ builder.Services.AddHttpClient("BookingServiceClient", client =>
 });
 
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-builder.Services.AddScoped<IPaymentGateway, MockPaymentGateway>();
+builder.Services.AddScoped<StripeGateway>();
+builder.Services.AddScoped<RazorpayGateway>();
 builder.Services.AddScoped<IPaymentService, PaymentService.Services.PaymentService>();
 
 builder.Services.AddControllers().AddJsonOptions(options =>

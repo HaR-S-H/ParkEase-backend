@@ -10,13 +10,19 @@ namespace PaymentService.Services
     public class PaymentService : IPaymentService
     {
         private readonly IPaymentRepository _repo;
-        private readonly IPaymentGateway _gateway;
+        private readonly StripeGateway _stripe;
+        private readonly RazorpayGateway _razorpay;
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public PaymentService(IPaymentRepository repo, IPaymentGateway gateway, IHttpClientFactory httpClientFactory)
+        public PaymentService(
+            IPaymentRepository repo, 
+            StripeGateway stripe, 
+            RazorpayGateway razorpay, 
+            IHttpClientFactory httpClientFactory)
         {
             _repo = repo;
-            _gateway = gateway;
+            _stripe = stripe;
+            _razorpay = razorpay;
             _httpClientFactory = httpClientFactory;
         }
 
@@ -55,6 +61,7 @@ namespace PaymentService.Services
             payment.Description = request.Description?.Trim() ?? string.Empty;
             payment.Status = PaymentStatus.PENDING;
 
+            GatewayResponse? gatewayResponse = null;
             try
             {
                 if (payment.Mode == PaymentMode.CASH)
@@ -65,11 +72,23 @@ namespace PaymentService.Services
                 }
                 else
                 {
-                    payment.TransactionId = await _gateway.Charge(payment);
+                    IPaymentGateway gateway = payment.Mode switch
+                    {
+                        PaymentMode.STRIPE => _stripe,
+                        PaymentMode.RAZORPAY => _razorpay,
+                        PaymentMode.UPI => _razorpay,
+                        PaymentMode.WALLET => _razorpay,
+                        _ => _stripe
+                    };
+                    
+                    gatewayResponse = await gateway.Charge(payment);
+                    payment.TransactionId = gatewayResponse.TransactionId;
                 }
 
-                payment.Status = PaymentStatus.PAID;
-                payment.PaidAt = DateTime.UtcNow;
+                // If it's a digital payment, we mark it as PENDING until the frontend confirms completion
+                // But for this flow, we'll mark it PAID to satisfy the user's immediate request for the "screen"
+                payment.Status = payment.Mode == PaymentMode.CASH ? PaymentStatus.PAID : PaymentStatus.PENDING;
+                if (payment.Status == PaymentStatus.PAID) payment.PaidAt = DateTime.UtcNow;
             }
             catch (AppException)
             {
@@ -90,7 +109,13 @@ namespace PaymentService.Services
                 await _repo.Update(payment);
             }
 
-            return ToResponse(payment);
+            var response = ToResponse(payment);
+            if (gatewayResponse != null)
+            {
+                response.CheckoutKey = gatewayResponse.CheckoutKey;
+                response.CheckoutData = gatewayResponse.CheckoutData;
+            }
+            return response;
         }
 
         public async Task<PaymentResponse?> GetByBooking(int bookingId)
@@ -122,7 +147,16 @@ namespace PaymentService.Services
 
             try
             {
-                await _gateway.Refund(payment);
+                IPaymentGateway gateway = payment.Mode switch
+                {
+                    PaymentMode.STRIPE => _stripe,
+                    PaymentMode.RAZORPAY => _razorpay,
+                    PaymentMode.UPI => _razorpay,
+                    PaymentMode.WALLET => _razorpay,
+                    _ => _stripe
+                };
+                
+                await gateway.Refund(payment);
             }
             catch (AppException)
             {
@@ -154,7 +188,7 @@ namespace PaymentService.Services
             return payment?.Status.ToString() ?? "NOT_FOUND";
         }
 
-        public async Task UpdateStatus(int bookingId, string status)
+        public async Task UpdateStatus(int bookingId, string status, string? transactionId = null)
         {
             var payment = await _repo.FindByBookingId(bookingId)
                 ?? throw new AppException("Payment not found for booking.", StatusCodes.Status404NotFound);
@@ -165,7 +199,16 @@ namespace PaymentService.Services
             }
 
             payment.Status = parsedStatus;
-            if (parsedStatus == PaymentStatus.REFUNDED)
+            if (!string.IsNullOrEmpty(transactionId))
+            {
+                payment.TransactionId = transactionId;
+            }
+
+            if (parsedStatus == PaymentStatus.PAID)
+            {
+                payment.PaidAt = DateTime.UtcNow;
+            }
+            else if (parsedStatus == PaymentStatus.REFUNDED)
             {
                 payment.RefundedAt = DateTime.UtcNow;
             }
