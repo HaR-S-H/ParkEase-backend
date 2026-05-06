@@ -64,20 +64,25 @@ namespace NotificationService.Services
             using var client = new SmtpClient();
             try
             {
+                _logger.LogInformation("[SMTP Step 1] About to connect to {Host}:{Port}", host, port);
                 await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
-                _logger.LogInformation("Connected to SMTP server {Host}:{Port}", host, port);
+                _logger.LogInformation("[SMTP Step 2] Connected to SMTP server {Host}:{Port}", host, port);
 
+                _logger.LogInformation("[SMTP Step 3] About to authenticate as {Username}", username);
                 await client.AuthenticateAsync(username, password);
-                _logger.LogInformation("Authenticated to SMTP as {Username}", username);
+                _logger.LogInformation("[SMTP Step 4] Authenticated to SMTP as {Username}", username);
 
+                _logger.LogInformation("[SMTP Step 5] About to send message");
                 await client.SendAsync(message);
-                _logger.LogInformation("Email sent successfully to {To}", email);
+                _logger.LogInformation("[SMTP Step 6] Email sent successfully to {To}", email);
 
+                _logger.LogInformation("[SMTP Step 7] About to disconnect");
                 await client.DisconnectAsync(true);
+                _logger.LogInformation("[SMTP Step 8] Disconnected from SMTP");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to send email to {To} via {Host}:{Port}", email, host, port);
+                _logger.LogError(ex, "[SMTP ERROR] Failed to send email to {To} via {Host}:{Port}. Exception type: {ExType}", email, host, port, ex.GetType().Name);
                 throw;
             }
         }
