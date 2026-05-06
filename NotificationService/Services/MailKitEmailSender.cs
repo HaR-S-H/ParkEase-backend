@@ -36,7 +36,7 @@ namespace NotificationService.Services
             message.Body = new TextPart("html") { Text = htmlBody };
 
             var host = _configuration["Mail:Smtp:Host"];
-            var port = int.TryParse(_configuration["Mail:Smtp:Port"], out var parsedPort) ? parsedPort : 587;
+            var port = int.TryParse(_configuration["Mail:Smtp:Port"], out var parsedPort) ? parsedPort : 465;
             var username = _configuration["Mail:Smtp:Username"];
             var password = _configuration["Mail:Smtp:Password"];
             var fromEmail = _configuration["Mail:From:Email"];
@@ -68,7 +68,9 @@ namespace NotificationService.Services
                 client.Timeout = 30000;
                 
                 _logger.LogInformation("[SMTP Step 1] About to connect to {Host}:{Port}", host, port);
-                await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+                // Use SSL on connect (port 465) instead of STARTTLS (port 587) for better Render compatibility
+                var secureOption = port == 465 ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.StartTls;
+                await client.ConnectAsync(host, port, secureOption);
                 _logger.LogInformation("[SMTP Step 2] Connected to SMTP server {Host}:{Port}", host, port);
 
                 _logger.LogInformation("[SMTP Step 3] About to authenticate as {Username}", username);
