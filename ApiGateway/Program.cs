@@ -1,14 +1,10 @@
 var builder = WebApplication.CreateBuilder(args);
-var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-	?? ["http://localhost:8080", "http://localhost:4200"];
-
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("Frontend", policy =>
-		policy.WithOrigins(corsOrigins)
+		policy.AllowAnyOrigin()
 			.AllowAnyHeader()
-			.AllowAnyMethod()
-			.AllowCredentials());
+			.AllowAnyMethod());
 });
 
 builder.Services.AddReverseProxy()
