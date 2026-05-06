@@ -47,10 +47,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+// All service calls route through ApiGateway
 builder.Services.AddHttpClient("ParkingLotServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ParkingLotService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ParkingLotService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 builder.Services.AddScoped<IParkingLotApiClient, ParkingLotApiClient>();
 builder.Services.AddScoped<ISpotRepository, SpotRepository>();

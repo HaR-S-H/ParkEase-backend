@@ -5,8 +5,11 @@ namespace PaymentService.Services
 {
     public class StripeGateway : IPaymentGateway
     {
+        private readonly IConfiguration _configuration;
+
         public StripeGateway(IConfiguration config)
         {
+            _configuration = config;
             StripeConfiguration.ApiKey = config["Gateway:StripeApiKey"] ?? "";
         }
 
@@ -35,8 +38,8 @@ namespace PaymentService.Services
                     },
                 },
                 Mode = "payment",
-                SuccessUrl = "http://localhost:4200/driver/dashboard?payment_success=true&booking_id=" + payment.BookingId,
-                CancelUrl = "http://localhost:4200/driver/dashboard?payment_cancelled=true",
+                SuccessUrl = $"{_configuration["FrontendUrl"]}/driver/dashboard?payment_success=true&booking_id={payment.BookingId}",
+                CancelUrl = $"{_configuration["FrontendUrl"]}/driver/dashboard?payment_cancelled=true",
                 ClientReferenceId = payment.BookingId.ToString()
             };
 

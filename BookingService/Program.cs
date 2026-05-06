@@ -57,20 +57,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+// All service calls route through ApiGateway
 builder.Services.AddHttpClient("SpotServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:SpotService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:SpotService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 builder.Services.AddHttpClient("ParkingLotServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ParkingLotService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ParkingLotService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 builder.Services.AddHttpClient("PaymentServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:PaymentService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:PaymentService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 
 builder.Services.AddScoped<IBookingRepository, BookingRepository>();

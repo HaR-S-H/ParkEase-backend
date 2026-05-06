@@ -23,22 +23,23 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<AnalyticsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// All service calls route through ApiGateway
 builder.Services.AddHttpClient("BookingServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:BookingService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:BookingService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 
 builder.Services.AddHttpClient("PaymentServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:PaymentService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:PaymentService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 
 builder.Services.AddHttpClient("ParkingLotServiceClient", client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ParkingLotService"]
-        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ParkingLotService"));
+    client.BaseAddress = new Uri(builder.Configuration["ServiceUrls:ApiGateway"]
+        ?? throw new InvalidOperationException("Missing configuration: ServiceUrls:ApiGateway"));
 });
 
 builder.Services.AddScoped<IAnalyticsRepository, AnalyticsRepository>();

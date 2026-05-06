@@ -47,7 +47,7 @@ namespace PaymentService.Services
                     })
                 };
             }
-            catch (Exception ex)
+            catch (Exception _ex)
             {
                 // Fallback for demo if keys fail
                 return new GatewayResponse
