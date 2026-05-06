@@ -7,10 +7,12 @@ namespace NotificationService.Services
     public class MailKitEmailSender : IEmailSender
     {
         private readonly IConfiguration _configuration;
+        private readonly ILogger<MailKitEmailSender> _logger;
 
-        public MailKitEmailSender(IConfiguration configuration)
+        public MailKitEmailSender(IConfiguration configuration, ILogger<MailKitEmailSender> logger)
         {
             _configuration = configuration;
+            _logger = logger;
         }
 
         public Task SendVerificationEmail(string email, string fullName, string token)
@@ -50,16 +52,34 @@ namespace NotificationService.Services
                 || string.IsNullOrWhiteSpace(password)
                 || string.IsNullOrWhiteSpace(fromEmail))
             {
+                _logger.LogError("Mail SMTP configuration incomplete: Host={Host}, Username={Username}, HasPassword={HasPassword}, FromEmail={FromEmail}",
+                    host, username, !string.IsNullOrWhiteSpace(password), fromEmail);
                 throw new InvalidOperationException("Mail SMTP configuration is incomplete.");
             }
 
             message.From.Add(new MailboxAddress(fromName, fromEmail));
 
+            _logger.LogInformation("Sending email to {To} via {Host}:{Port} from {From}", email, host, port, fromEmail);
+
             using var client = new SmtpClient();
-            await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(username, password);
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
+            try
+            {
+                await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
+                _logger.LogInformation("Connected to SMTP server {Host}:{Port}", host, port);
+
+                await client.AuthenticateAsync(username, password);
+                _logger.LogInformation("Authenticated to SMTP as {Username}", username);
+
+                await client.SendAsync(message);
+                _logger.LogInformation("Email sent successfully to {To}", email);
+
+                await client.DisconnectAsync(true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email to {To} via {Host}:{Port}", email, host, port);
+                throw;
+            }
         }
 
         private string BuildVerificationUrl(string email, string token)
