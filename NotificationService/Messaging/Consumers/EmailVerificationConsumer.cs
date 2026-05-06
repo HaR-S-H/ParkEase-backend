@@ -28,8 +28,15 @@ namespace NotificationService.Messaging.Consumers
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var queueName = _configuration["RabbitMQ:Queues:EmailVerification"]
-                ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:EmailVerification.");
+            var queueName = _configuration["RabbitMQ:Queues:EmailVerification"];
+            var rabbitUrl = _configuration["RabbitMQ:Url"];
+
+            // Consumer is optional - only start if RabbitMQ is configured
+            if (string.IsNullOrWhiteSpace(queueName) || string.IsNullOrWhiteSpace(rabbitUrl))
+            {
+                _logger.LogInformation("RabbitMQ configuration missing; email verification consumer will not start.");
+                return;
+            }
 
             try
             {
@@ -102,8 +109,8 @@ namespace NotificationService.Messaging.Consumers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Email verification consumer encountered an error and will exit");
-                throw;
+                _logger.LogError(ex, "Email verification consumer encountered an error");
+                // Don't throw - allow app to continue without this consumer
             }
         }
 
