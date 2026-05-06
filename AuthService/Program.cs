@@ -71,6 +71,7 @@ builder.Services.AddHttpClient<INotificationDispatcher, NotificationDispatcher>(
         ?? throw new InvalidOperationException("Missing configuration key: ServiceUrls:NotificationService");
 
     client.BaseAddress = new Uri(baseUrl.TrimEnd('/'));
+    client.Timeout = TimeSpan.FromSeconds(6);
 });
 builder.Services.AddScoped<IAuthService, AuthService.Services.AuthService>();
 

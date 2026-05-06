@@ -6,8 +6,8 @@ namespace NotificationService.Services
     {
         Task Send(Notification notification);
         Task SendBulk(List<int> recipientIds, string title, string message);
-        Task SendVerificationEmail(string email, string fullName, string token);
-        Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword);
+        Task SendVerificationEmail(string email, string fullName, string token, int? recipientId = null);
+        Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword, int? recipientId = null);
         Task MarkAsRead(int notificationId);
         Task MarkAllRead(int recipientId);
         Task<List<Notification>> GetByRecipient(int recipientId);

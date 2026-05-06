@@ -98,7 +98,7 @@ namespace AuthService.Services
                 await _userRepository.Update(created);
             }
 
-            await _notificationDispatcher.SendVerificationEmail(created.Email, created.FullName, created.EmailVerificationToken!);
+            await _notificationDispatcher.SendVerificationEmail(created.Email, created.FullName, created.EmailVerificationToken!, created.UserId);
 
             return new RegisterResponse
             {
@@ -314,7 +314,7 @@ namespace AuthService.Services
             user.EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
             await _userRepository.Update(user);
 
-            await _notificationDispatcher.SendVerificationEmail(user.Email, user.FullName, user.EmailVerificationToken!);
+            await _notificationDispatcher.SendVerificationEmail(user.Email, user.FullName, user.EmailVerificationToken!, user.UserId);
         }
 
         public async Task ForgotPassword(ForgotPasswordRequest request)
@@ -347,7 +347,7 @@ namespace AuthService.Services
                 await _dbContext.SaveChangesAsync();
             }
 
-            await _notificationDispatcher.SendForgotPasswordEmail(user.Email, user.FullName, temporaryPassword);
+            await _notificationDispatcher.SendForgotPasswordEmail(user.Email, user.FullName, temporaryPassword, user.UserId);
         }
 
         public async Task<UserResponse?> GetUserByEmail(string email)

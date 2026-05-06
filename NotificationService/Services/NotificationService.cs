@@ -8,7 +8,7 @@ namespace NotificationService.Services
     public class NotificationService : INotificationService
     {
         private static readonly HashSet<string> AllowedTypes =
-        ["BOOKING", "CHECKIN", "EXPIRY", "CHECKOUT", "PAYMENT", "PROMO"];
+        ["BOOKING", "CHECKIN", "EXPIRY", "CHECKOUT", "PAYMENT", "PROMO", "VERIFICATION"];
 
         private static readonly HashSet<string> AllowedChannels =
         ["APP", "EMAIL", "SMS"];
@@ -78,14 +78,47 @@ namespace NotificationService.Services
             }
         }
 
-        public Task SendVerificationEmail(string email, string fullName, string token)
+        public async Task SendVerificationEmail(string email, string fullName, string token, int? recipientId = null)
         {
-            return _emailSender.SendVerificationEmail(email, fullName, token);
+            // Persist an EMAIL notification for the recipient if provided
+            if (recipientId.HasValue && recipientId.Value > 0)
+            {
+                var notification = new Notification
+                {
+                    RecipientId = recipientId.Value,
+                    Type = "VERIFICATION",
+                    Title = "Verify your ParkEase account",
+                    Message = "A verification email was sent to your email address.",
+                    Channel = "EMAIL",
+                    IsRead = false,
+                    SentAt = DateTime.UtcNow
+                };
+
+                await _repo.Create(notification);
+            }
+
+            await _emailSender.SendVerificationEmail(email, fullName, token);
         }
 
-        public Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword)
+        public async Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword, int? recipientId = null)
         {
-            return _emailSender.SendForgotPasswordEmail(email, fullName, temporaryPassword);
+            if (recipientId.HasValue && recipientId.Value > 0)
+            {
+                var notification = new Notification
+                {
+                    RecipientId = recipientId.Value,
+                    Type = "VERIFICATION",
+                    Title = "Password reset",
+                    Message = "A temporary password has been issued to your account.",
+                    Channel = "EMAIL",
+                    IsRead = false,
+                    SentAt = DateTime.UtcNow
+                };
+
+                await _repo.Create(notification);
+            }
+
+            await _emailSender.SendForgotPasswordEmail(email, fullName, temporaryPassword);
         }
 
         public async Task MarkAsRead(int notificationId)

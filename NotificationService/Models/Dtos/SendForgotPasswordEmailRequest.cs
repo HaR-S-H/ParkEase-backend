@@ -15,5 +15,8 @@ namespace NotificationService.Models.Dtos
         [Required]
         [MaxLength(200)]
         public string TemporaryPassword { get; set; } = string.Empty;
+
+        // Optional user id to persist notification for
+        public int? RecipientId { get; set; }
     }
 }
