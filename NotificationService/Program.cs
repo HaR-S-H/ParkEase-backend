@@ -77,4 +77,18 @@ app.UseCors("Frontend");
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
+// Apply pending EF Core migrations
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
+        await db.Database.MigrateAsync();
+    }
+}
+catch (Exception ex)
+{
+    app.Logger.LogError($"Failed to apply migrations: {ex.Message}");
+}
+
 app.Run();
