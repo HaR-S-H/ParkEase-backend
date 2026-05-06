@@ -5,8 +5,6 @@ using System.Text;
 using AuthService.Data;
 using AuthService.Helpers.Implementations;
 using AuthService.Helpers.Interfaces;
-using AuthService.Messaging;
-using AuthService.Messaging.Messages;
 using AuthService.Models;
 using AuthService.Models.Dtos;
 using AuthService.Repositories;
@@ -25,9 +23,10 @@ namespace AuthService.Services
         private readonly IPasswordHasher _passwordHasher;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
-        private readonly IRabbitMqPublisher _rabbitMqPublisher;
+        private readonly INotificationDispatcher _notificationDispatcher;
         private readonly IGoogleAuthService _googleAuthService;
         private readonly AuthDbContext _dbContext;
+        private readonly IStorageService _storageService;
 
         public AuthService(
             IUserRepository userRepository,
@@ -35,7 +34,8 @@ namespace AuthService.Services
             IPasswordHasher passwordHasher,
             IConfiguration configuration,
             IMapper mapper,
-            IRabbitMqPublisher rabbitMqPublisher,
+            INotificationDispatcher notificationDispatcher,
+            IStorageService storageService,
             IGoogleAuthService googleAuthService,
             AuthDbContext dbContext)
         {
@@ -44,7 +44,8 @@ namespace AuthService.Services
             _passwordHasher = passwordHasher;
             _configuration = configuration;
             _mapper = mapper;
-            _rabbitMqPublisher = rabbitMqPublisher;
+            _notificationDispatcher = notificationDispatcher;
+            _storageService = storageService;
             _googleAuthService = googleAuthService;
             _dbContext = dbContext;
         }
@@ -84,25 +85,20 @@ namespace AuthService.Services
 
             var created = await _userRepository.Create(user);
 
-            // Handle profile picture upload if provided
             if (request.ProfilePic != null && request.ProfilePic.Length > 0)
             {
                 await using var stream = request.ProfilePic.OpenReadStream();
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
+                var pictureUrl = await _storageService.UploadProfilePicture(
+                    stream,
+                    request.ProfilePic.FileName,
+                    string.IsNullOrWhiteSpace(request.ProfilePic.ContentType) ? "application/octet-stream" : request.ProfilePic.ContentType,
+                    created.UserId);
 
-                var uploadMessage = new ProfilePictureUploadRequestedMessage
-                {
-                    UserId = created.UserId,
-                    FileName = request.ProfilePic.FileName,
-                    ContentType = string.IsNullOrWhiteSpace(request.ProfilePic.ContentType) ? "application/octet-stream" : request.ProfilePic.ContentType,
-                    Base64Content = Convert.ToBase64String(memoryStream.ToArray())
-                };
-
-                await _rabbitMqPublisher.Publish(GetPictureUploadQueue(), uploadMessage);
+                created.ProfilePicUrl = pictureUrl;
+                await _userRepository.Update(created);
             }
 
-            await PublishVerificationEmail(created.Email, created.FullName, created.EmailVerificationToken!);
+            await _notificationDispatcher.SendVerificationEmail(created.Email, created.FullName, created.EmailVerificationToken!);
 
             return new RegisterResponse
             {
@@ -318,7 +314,7 @@ namespace AuthService.Services
             user.EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
             await _userRepository.Update(user);
 
-            await PublishVerificationEmail(user.Email, user.FullName, user.EmailVerificationToken);
+            await _notificationDispatcher.SendVerificationEmail(user.Email, user.FullName, user.EmailVerificationToken!);
         }
 
         public async Task ForgotPassword(ForgotPasswordRequest request)
@@ -351,7 +347,7 @@ namespace AuthService.Services
                 await _dbContext.SaveChangesAsync();
             }
 
-            await PublishForgotPasswordEmail(user.Email, user.FullName, temporaryPassword);
+            await _notificationDispatcher.SendForgotPasswordEmail(user.Email, user.FullName, temporaryPassword);
         }
 
         public async Task<UserResponse?> GetUserByEmail(string email)
@@ -428,18 +424,13 @@ namespace AuthService.Services
                 }
 
                 await using var stream = request.ProfilePic.OpenReadStream();
-                using var memoryStream = new MemoryStream();
-                await stream.CopyToAsync(memoryStream);
+                var pictureUrl = await _storageService.UploadProfilePicture(
+                    stream,
+                    request.ProfilePic.FileName,
+                    string.IsNullOrWhiteSpace(request.ProfilePic.ContentType) ? "application/octet-stream" : request.ProfilePic.ContentType,
+                    userId);
 
-                var uploadMessage = new ProfilePictureUploadRequestedMessage
-                {
-                    UserId = userId,
-                    FileName = request.ProfilePic.FileName,
-                    ContentType = string.IsNullOrWhiteSpace(request.ProfilePic.ContentType) ? "application/octet-stream" : request.ProfilePic.ContentType,
-                    Base64Content = Convert.ToBase64String(memoryStream.ToArray())
-                };
-
-                await _rabbitMqPublisher.Publish(GetPictureUploadQueue(), uploadMessage);
+                user.ProfilePicUrl = pictureUrl;
             }
 
             await _userRepository.Update(user);
@@ -519,46 +510,5 @@ namespace AuthService.Services
             return new string(chars);
         }
 
-        private Task PublishVerificationEmail(string email, string fullName, string token)
-        {
-            var message = new EmailVerificationRequestedMessage
-            {
-                Email = email,
-                FullName = fullName,
-                Token = token
-            };
-
-            return _rabbitMqPublisher.Publish(GetEmailQueue(), message);
-        }
-
-        private Task PublishForgotPasswordEmail(string email, string fullName, string temporaryPassword)
-        {
-            var message = new ForgotPasswordRequestedMessage
-            {
-                Email = email,
-                FullName = fullName,
-                TemporaryPassword = temporaryPassword
-            };
-
-            return _rabbitMqPublisher.Publish(GetForgotPasswordQueue(), message);
-        }
-
-        private string GetEmailQueue()
-        {
-            return _configuration["RabbitMQ:Queues:EmailVerification"]
-                ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:EmailVerification.");
-        }
-
-        private string GetPictureUploadQueue()
-        {
-            return _configuration["RabbitMQ:Queues:ProfilePictureUpload"]
-                ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:ProfilePictureUpload.");
-        }
-
-        private string GetForgotPasswordQueue()
-        {
-            return _configuration["RabbitMQ:Queues:ForgotPassword"]
-                ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:ForgotPassword.");
-        }
     }
 }

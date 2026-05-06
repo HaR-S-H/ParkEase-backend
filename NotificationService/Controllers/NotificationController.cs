@@ -82,6 +82,20 @@ namespace NotificationService.Controllers
             return Accepted(new { message = "Email sent." });
         }
 
+        [HttpPost("send-verification-email")]
+        public async Task<IActionResult> SendVerificationEmail([FromBody] SendVerificationEmailRequest request)
+        {
+            await _notifService.SendVerificationEmail(request.Email, request.FullName, request.Token);
+            return Accepted(new { message = "Verification email sent." });
+        }
+
+        [HttpPost("send-forgot-password-email")]
+        public async Task<IActionResult> SendForgotPasswordEmail([FromBody] SendForgotPasswordEmailRequest request)
+        {
+            await _notifService.SendForgotPasswordEmail(request.Email, request.FullName, request.TemporaryPassword);
+            return Accepted(new { message = "Forgot password email sent." });
+        }
+
         [HttpPost("send-sms")]
         public async Task<IActionResult> SendSms([FromBody] SendSmsRequest request)
         {

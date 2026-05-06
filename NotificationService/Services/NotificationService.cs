@@ -78,6 +78,16 @@ namespace NotificationService.Services
             }
         }
 
+        public Task SendVerificationEmail(string email, string fullName, string token)
+        {
+            return _emailSender.SendVerificationEmail(email, fullName, token);
+        }
+
+        public Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword)
+        {
+            return _emailSender.SendForgotPasswordEmail(email, fullName, temporaryPassword);
+        }
+
         public async Task MarkAsRead(int notificationId)
         {
             var notification = await _repo.FindByNotificationId(notificationId)

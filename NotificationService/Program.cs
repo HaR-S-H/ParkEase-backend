@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using NotificationService.Data;
 using NotificationService.Hubs;
-using NotificationService.Messaging.Consumers;
 using NotificationService.Models;
 using NotificationService.Repositories;
 using NotificationService.Services;
@@ -24,7 +23,6 @@ builder.Services.AddScoped<INotificationService, NotificationService.Services.No
 builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
 builder.Services.AddScoped<ISmsSender, TwilioSmsSender>();
 
-builder.Services.AddHostedService<EmailVerificationConsumer>();
 
 builder.Services.AddSignalR();
 builder.Services.AddControllers();

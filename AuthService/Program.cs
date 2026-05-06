@@ -3,8 +3,6 @@ using AuthService.Data;
 using AuthService.Helpers.Implementations;
 using AuthService.Helpers.Interfaces;
 using AuthService.Mappings;
-using AuthService.Messaging;
-using AuthService.Messaging.Consumers;
 using AuthService.Models;
 using AuthService.Repositories;
 using AuthService.Services;
@@ -65,12 +63,15 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-builder.Services.AddScoped<IEmailService, MailKitEmailService>();
 builder.Services.AddScoped<IStorageService, S3StorageService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
-builder.Services.AddHostedService<ProfilePictureUploadConsumer>();
-builder.Services.AddHostedService<ForgotPasswordConsumer>();
+builder.Services.AddHttpClient<INotificationDispatcher, NotificationDispatcher>(client =>
+{
+    var baseUrl = builder.Configuration["ServiceUrls:NotificationService"]
+        ?? throw new InvalidOperationException("Missing configuration key: ServiceUrls:NotificationService");
+
+    client.BaseAddress = new Uri(baseUrl.TrimEnd('/'));
+});
 builder.Services.AddScoped<IAuthService, AuthService.Services.AuthService>();
 
 var app = builder.Build();
