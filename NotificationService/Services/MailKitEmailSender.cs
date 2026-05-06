@@ -64,6 +64,9 @@ namespace NotificationService.Services
             using var client = new SmtpClient();
             try
             {
+                // Increase timeout to 30 seconds to account for Render's network latency
+                client.Timeout = 30000;
+                
                 _logger.LogInformation("[SMTP Step 1] About to connect to {Host}:{Port}", host, port);
                 await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
                 _logger.LogInformation("[SMTP Step 2] Connected to SMTP server {Host}:{Port}", host, port);
