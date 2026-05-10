@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+.git/
+.gitignore
+README.md
+*.md
+ParkEase.postman_collection.json
+ParkEase.postman_environment.json

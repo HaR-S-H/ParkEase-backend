@@ -1,0 +1,958 @@
+{
+  "info": {
+    "_postman_id": "5d2f6a11-4d7d-4de2-9f1f-0d6c2a7c3b61",
+    "name": "ParkEase Services",
+    "description": "Import this collection and use the ParkEase API Gateway as the single base URL. Login first to populate the access token. Protected endpoints use bearer auth inherited from the collection. Notification hub endpoints are not included because they are SignalR-specific.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "apiGatewayUrl", "value": "http://localhost:5000" },
+    { "key": "frontendUrl", "value": "http://localhost:3000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "userId", "value": "1" },
+    { "key": "bookingId", "value": "1" },
+    { "key": "lotId", "value": "1" },
+    { "key": "spotId", "value": "1" },
+    { "key": "vehicleId", "value": "1" },
+    { "key": "ownerId", "value": "1" },
+    { "key": "managerId", "value": "1" },
+    { "key": "recipientId", "value": "1" },
+    { "key": "notificationId", "value": "1" },
+    { "key": "transactionId", "value": "txn_123" },
+    { "key": "email", "value": "user@example.com" },
+    { "key": "verificationToken", "value": "paste-email-token" },
+    { "key": "query", "value": "central" },
+    { "key": "city", "value": "Bangalore" },
+    { "key": "status", "value": "PAID" },
+    { "key": "date", "value": "2026-05-06" },
+    { "key": "fromDate", "value": "2026-05-01" },
+    { "key": "toDate", "value": "2026-05-31" },
+    { "key": "latitude", "value": "12.9716" },
+    { "key": "longitude", "value": "77.5946" },
+    { "key": "radiusKm", "value": "5" }
+  ],
+  "item": [
+    {
+      "name": "Auth Service",
+      "item": [
+        {
+          "name": "POST Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "FullName", "value": "John Doe", "type": "text" },
+                { "key": "Email", "value": "john@example.com", "type": "text" },
+                { "key": "Password", "value": "Password123!", "type": "text" },
+                { "key": "Phone", "value": "9999999999", "type": "text" },
+                { "key": "Role", "value": "USER", "type": "text" },
+                { "key": "VehiclePlate", "value": "MH12AB1234", "type": "text" }
+              ]
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "POST Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('accessToken', json.token);",
+                  "if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "if (json.user && json.user.userId !== undefined) pm.environment.set('userId', String(json.user.userId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "POST Google Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('accessToken', json.token);",
+                  "if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);",
+                  "if (json.user && json.user.userId !== undefined) pm.environment.set('userId', String(json.user.userId));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"paste-google-id-token\",\n  \"role\": \"USER\",\n  \"phone\": \"9999999999\",\n  \"vehiclePlate\": \"MH12AB1234\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/google-login"
+          }
+        },
+        {
+          "name": "POST Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('accessToken', json.token);",
+                  "if (json.refreshToken) pm.environment.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/refresh"
+          }
+        },
+        {
+          "name": "GET Verify Email",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/auth/verify-email?email={{email}}&token={{verificationToken}}"
+          }
+        },
+        {
+          "name": "POST Resend Verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/resend-verification"
+          }
+        },
+        {
+          "name": "POST Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/forgot-password"
+          }
+        },
+        {
+          "name": "POST Validate Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\"{{accessToken}}\""
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/validate"
+          }
+        },
+        {
+          "name": "GET Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/auth/profile"
+          }
+        },
+        {
+          "name": "PUT Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "FullName", "value": "John Doe Updated", "type": "text" },
+                { "key": "Phone", "value": "9999999998", "type": "text" },
+                { "key": "VehiclePlate", "value": "MH12AB1235", "type": "text" },
+                { "key": "CurrentPassword", "value": "Password123!", "type": "text" },
+                { "key": "NewPassword", "value": "Password1234!", "type": "text" }
+              ]
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/auth/profile"
+          }
+        },
+        {
+          "name": "POST Logout",
+          "request": {
+            "method": "POST",
+            "url": "{{apiGatewayUrl}}/api/v1/auth/logout"
+          }
+        },
+        {
+          "name": "DELETE Deactivate Account",
+          "request": {
+            "method": "DELETE",
+            "url": "{{apiGatewayUrl}}/api/v1/auth/deactivate"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Booking Service",
+      "item": [
+        {
+          "name": "POST Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}},\n  \"lotId\": {{lotId}},\n  \"spotId\": {{spotId}},\n  \"vehiclePlate\": \"MH12AB1234\",\n  \"vehicleType\": \"FOURW\",\n  \"bookingType\": 0,\n  \"startTime\": \"2026-05-06T10:00:00Z\",\n  \"endTime\": \"2026-05-06T12:00:00Z\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/bookings"
+          }
+        },
+        {
+          "name": "GET Booking By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/{{bookingId}}"
+          }
+        },
+        {
+          "name": "GET Bookings By User",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/user/{{userId}}"
+          }
+        },
+        {
+          "name": "GET Bookings By Lot",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/lot/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Active Bookings",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/active"
+          }
+        },
+        {
+          "name": "PUT Cancel Booking",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/{{bookingId}}/cancel"
+          }
+        },
+        {
+          "name": "PUT Check In",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/{{bookingId}}/checkin"
+          }
+        },
+        {
+          "name": "PUT Check Out",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/{{bookingId}}/checkout"
+          }
+        },
+        {
+          "name": "PUT Extend Booking",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newEndTime\": \"2026-05-06T14:00:00Z\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/{{bookingId}}/extend"
+          }
+        },
+        {
+          "name": "GET Calculate Amount",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/{{bookingId}}/calculate-amount"
+          }
+        },
+        {
+          "name": "GET Booking History",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/bookings/user/{{userId}}/history"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Service",
+      "item": [
+        {
+          "name": "POST Process Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": {{bookingId}},\n  \"userId\": {{userId}},\n  \"lotId\": {{lotId}},\n  \"amount\": 100,\n  \"mode\": \"CARD\",\n  \"currency\": \"INR\",\n  \"description\": \"Parking booking payment\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/payments/process"
+          }
+        },
+        {
+          "name": "POST Charge Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": {{bookingId}},\n  \"userId\": {{userId}},\n  \"lotId\": {{lotId}},\n  \"amount\": 100,\n  \"mode\": \"CARD\",\n  \"currency\": \"INR\",\n  \"description\": \"Parking booking payment\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/payments/charge"
+          }
+        },
+        {
+          "name": "POST Refund Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": {{bookingId}},\n  \"reason\": \"Customer requested refund\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/payments/refund"
+          }
+        },
+        {
+          "name": "GET Payment By Booking",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/booking/{{bookingId}}"
+          }
+        },
+        {
+          "name": "GET Payment By User",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/user/{{userId}}"
+          }
+        },
+        {
+          "name": "GET Payment History",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/history/{{userId}}"
+          }
+        },
+        {
+          "name": "GET Payment Status",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/status/{{bookingId}}"
+          }
+        },
+        {
+          "name": "PUT Payment Status",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/status/{{bookingId}}/{{status}}?transactionId={{transactionId}}"
+          }
+        },
+        {
+          "name": "GET Receipt",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/receipt/{{bookingId}}"
+          }
+        },
+        {
+          "name": "GET Revenue By Lot",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/revenue/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Payments By Status",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/payments/by-status/{{status}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parking Lot Service",
+      "item": [
+        {
+          "name": "POST Create Lot",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "Name", "value": "Central Mall Parking", "type": "text" },
+                { "key": "Address", "value": "123 Main Road", "type": "text" },
+                { "key": "City", "value": "Bangalore", "type": "text" },
+                { "key": "Latitude", "value": "12.9716", "type": "text" },
+                { "key": "Longitude", "value": "77.5946", "type": "text" },
+                { "key": "TotalSpots", "value": "100", "type": "text" },
+                { "key": "AvailableSpots", "value": "100", "type": "text" },
+                { "key": "ManagerId", "value": "1", "type": "text" },
+                { "key": "IsOpen", "value": "true", "type": "text" },
+                { "key": "IsApproved", "value": "false", "type": "text" },
+                { "key": "OpenTime", "value": "08:00", "type": "text" },
+                { "key": "CloseTime", "value": "22:00", "type": "text" }
+              ]
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/lots"
+          }
+        },
+        {
+          "name": "GET Lot By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Lots By City",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/city/{{city}}"
+          }
+        },
+        {
+          "name": "GET Lots By Manager",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/manager/{{managerId}}"
+          }
+        },
+        {
+          "name": "GET Nearby Lots",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/nearby?latitude={{latitude}}&longitude={{longitude}}&radiusKm={{radiusKm}}"
+          }
+        },
+        {
+          "name": "GET All Lots",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots"
+          }
+        },
+        {
+          "name": "GET Admin All Lots",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/admin-all"
+          }
+        },
+        {
+          "name": "GET Search Lots",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/search?query={{query}}"
+          }
+        },
+        {
+          "name": "PUT Update Lot",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "Name", "value": "Central Mall Parking Updated", "type": "text" },
+                { "key": "Address", "value": "123 Main Road", "type": "text" },
+                { "key": "City", "value": "Bangalore", "type": "text" },
+                { "key": "Latitude", "value": "12.9716", "type": "text" },
+                { "key": "Longitude", "value": "77.5946", "type": "text" },
+                { "key": "TotalSpots", "value": "120", "type": "text" },
+                { "key": "AvailableSpots", "value": "120", "type": "text" },
+                { "key": "ManagerId", "value": "1", "type": "text" },
+                { "key": "IsOpen", "value": "true", "type": "text" },
+                { "key": "IsApproved", "value": "true", "type": "text" },
+                { "key": "OpenTime", "value": "08:00", "type": "text" },
+                { "key": "CloseTime", "value": "22:00", "type": "text" }
+              ]
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}"
+          }
+        },
+        {
+          "name": "PUT Approve Lot",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/admin/approve/{{lotId}}"
+          }
+        },
+        {
+          "name": "PUT Toggle Open",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}/toggle-open"
+          }
+        },
+        {
+          "name": "PUT Decrement Available Spots",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}/available/decrement?quantity=1"
+          }
+        },
+        {
+          "name": "PUT Increment Available Spots",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}/available/increment?quantity=1"
+          }
+        },
+        {
+          "name": "PUT Increment Total Spots",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}/total/increment?quantity=1"
+          }
+        },
+        {
+          "name": "DELETE Lot",
+          "request": {
+            "method": "DELETE",
+            "url": "{{apiGatewayUrl}}/api/v1/lots/{{lotId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parking Spot Service",
+      "item": [
+        {
+          "name": "POST Add Spot",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lotId\": {{lotId}},\n  \"spotNumber\": \"A1\",\n  \"floor\": 1,\n  \"spotType\": \"STANDARD\",\n  \"vehicleType\": \"FOURW\",\n  \"status\": \"AVAILABLE\",\n  \"isHandicapped\": false,\n  \"isEVCharging\": false,\n  \"pricePerHour\": 50\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/spots"
+          }
+        },
+        {
+          "name": "POST Add Bulk Spots",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lotId\": {{lotId}},\n  \"spotNumberPrefix\": \"S\",\n  \"startNumber\": 1,\n  \"count\": 20,\n  \"floor\": 1,\n  \"spotType\": \"STANDARD\",\n  \"vehicleType\": \"FOURW\",\n  \"status\": \"AVAILABLE\",\n  \"isHandicapped\": false,\n  \"isEVCharging\": false,\n  \"pricePerHour\": 50\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/spots/bulk"
+          }
+        },
+        {
+          "name": "GET Spot By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/{{spotId}}"
+          }
+        },
+        {
+          "name": "GET Spots By Lot",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/lot/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Available Spots",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/lot/{{lotId}}/available"
+          }
+        },
+        {
+          "name": "GET Spots By Type And Lot",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/lot/{{lotId}}/type/STANDARD"
+          }
+        },
+        {
+          "name": "GET Available Count",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/lot/{{lotId}}/count"
+          }
+        },
+        {
+          "name": "PUT Occupy Spot",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/{{spotId}}/occupy"
+          }
+        },
+        {
+          "name": "PUT Release Spot",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/{{spotId}}/release"
+          }
+        },
+        {
+          "name": "PUT Update Spot",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"spotNumber\": \"A1\",\n  \"floor\": 1,\n  \"spotType\": \"STANDARD\",\n  \"vehicleType\": \"FOURW\",\n  \"status\": \"AVAILABLE\",\n  \"isHandicapped\": false,\n  \"isEVCharging\": false,\n  \"pricePerHour\": 50\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/spots/{{spotId}}"
+          }
+        },
+        {
+          "name": "DELETE Spot",
+          "request": {
+            "method": "DELETE",
+            "url": "{{apiGatewayUrl}}/api/v1/spots/{{spotId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicle Service",
+      "item": [
+        {
+          "name": "POST Register Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerId\": {{ownerId}},\n  \"licensePlate\": \"MH12AB1234\",\n  \"make\": \"Toyota\",\n  \"model\": \"Innova\",\n  \"color\": \"White\",\n  \"vehicleType\": \"FOURW\",\n  \"isEV\": false\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/register"
+          }
+        },
+        {
+          "name": "GET Vehicle By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "GET Vehicles By Owner",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/owner/{{ownerId}}"
+          }
+        },
+        {
+          "name": "GET Vehicle By Plate",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/plate/MH12AB1234"
+          }
+        },
+        {
+          "name": "GET All Vehicles",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/all"
+          }
+        },
+        {
+          "name": "PUT Update Vehicle",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"MH12AB1234\",\n  \"make\": \"Toyota\",\n  \"model\": \"Innova Crysta\",\n  \"color\": \"White\",\n  \"vehicleType\": \"FOURW\",\n  \"isEV\": false,\n  \"isActive\": true\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "DELETE Vehicle",
+          "request": {
+            "method": "DELETE",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "GET Vehicle Type",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/type/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "GET Is EV",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/vehicles/is-ev/{{vehicleId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics Service",
+      "item": [
+        {
+          "name": "GET Occupancy Rate",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/occupancyRate/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Occupancy By Hour",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/byHour/{{lotId}}?date={{date}}"
+          }
+        },
+        {
+          "name": "GET Peak Hours",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/peakHours/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Revenue",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/revenue/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Revenue By Day",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/revenueByDay/{{lotId}}?from={{fromDate}}&to={{toDate}}"
+          }
+        },
+        {
+          "name": "GET Spot Types",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/spotTypes/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Average Duration",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/avgDuration/{{lotId}}"
+          }
+        },
+        {
+          "name": "GET Platform Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/platformSummary"
+          }
+        },
+        {
+          "name": "GET Daily Report",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/dailyReport/{{lotId}}?date={{date}}"
+          }
+        },
+        {
+          "name": "POST Log Occupancy",
+          "request": {
+            "method": "POST",
+            "url": "{{apiGatewayUrl}}/api/v1/analytics/log-occupancy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notification Service",
+      "item": [
+        {
+          "name": "GET Notifications By Recipient",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/recipient/{{recipientId}}"
+          }
+        },
+        {
+          "name": "PUT Mark As Read",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/read/{{notificationId}}"
+          }
+        },
+        {
+          "name": "PUT Mark All Read",
+          "request": {
+            "method": "PUT",
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/read-all/{{recipientId}}"
+          }
+        },
+        {
+          "name": "GET Unread Count",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/unread-count/{{recipientId}}"
+          }
+        },
+        {
+          "name": "DELETE Notification",
+          "request": {
+            "method": "DELETE",
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/{{notificationId}}"
+          }
+        },
+        {
+          "name": "POST Send Bulk Notifications",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipientIds\": [1, 2, 3],\n  \"title\": \"ParkEase Update\",\n  \"message\": \"Your parking booking has been updated.\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/send-bulk"
+          }
+        },
+        {
+          "name": "POST Send Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"recipientId\": {{recipientId}},\n  \"type\": \"INFO\",\n  \"title\": \"ParkEase\",\n  \"message\": \"Your parking booking is confirmed.\",\n  \"channel\": \"EMAIL\",\n  \"relatedId\": {{bookingId}},\n  \"relatedType\": \"BOOKING\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/send"
+          }
+        },
+        {
+          "name": "POST Send Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"subject\": \"ParkEase Notification\",\n  \"body\": \"Your booking is confirmed.\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/send-email"
+          }
+        },
+        {
+          "name": "POST Send SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"9999999999\",\n  \"body\": \"Your booking is confirmed.\"\n}"
+            },
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/send-sms"
+          }
+        },
+        {
+          "name": "GET All Notifications",
+          "request": {
+            "method": "GET",
+            "url": "{{apiGatewayUrl}}/api/v1/notifications/all"
+          }
+        }
+      ]
+    }
+  ]
+}
