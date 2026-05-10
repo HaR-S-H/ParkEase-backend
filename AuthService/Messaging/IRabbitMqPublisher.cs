@@ -1,0 +1,7 @@
+namespace AuthService.Messaging
+{
+    public interface IRabbitMqPublisher
+    {
+        Task Publish<T>(string queueName, T message);
+    }
+}

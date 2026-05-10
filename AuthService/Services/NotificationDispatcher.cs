@@ -1,55 +1,72 @@
-using System.Net.Http.Json;
+using AuthService.Messaging;
+using AuthService.Messaging.Messages;
 using Microsoft.Extensions.Logging;
 
 namespace AuthService.Services
 {
     public class NotificationDispatcher : INotificationDispatcher
     {
-        private readonly HttpClient _httpClient;
+        private readonly IRabbitMqPublisher _publisher;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<NotificationDispatcher> _logger;
 
-        public NotificationDispatcher(HttpClient httpClient, ILogger<NotificationDispatcher> logger)
+        public NotificationDispatcher(
+            IRabbitMqPublisher publisher,
+            IConfiguration configuration,
+            ILogger<NotificationDispatcher> logger)
         {
-            _httpClient = httpClient;
+            _publisher = publisher;
+            _configuration = configuration;
             _logger = logger;
         }
 
-        public Task SendVerificationEmail(string email, string fullName, string token, int? recipientId = null, CancellationToken cancellationToken = default)
-        {
-            return PostSafeAsync("api/v1/notifications/send-verification-email", new
-            {
-                Email = email,
-                FullName = fullName,
-                Token = token,
-                RecipientId = recipientId
-            }, cancellationToken);
-        }
-
-        public Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword, int? recipientId = null, CancellationToken cancellationToken = default)
-        {
-            return PostSafeAsync("api/v1/notifications/send-forgot-password-email", new
-            {
-                Email = email,
-                FullName = fullName,
-                TemporaryPassword = temporaryPassword,
-                RecipientId = recipientId
-            }, cancellationToken);
-        }
-
-        private async Task PostSafeAsync(string path, object body, CancellationToken cancellationToken)
+        public async Task SendVerificationEmail(string email, string fullName, string token, int? recipientId = null, CancellationToken cancellationToken = default)
         {
             try
             {
-                using var response = await _httpClient.PostAsJsonAsync(path, body, cancellationToken);
-                if (!response.IsSuccessStatusCode)
+                var queueName = _configuration["RabbitMQ:Queues:EmailSend"]
+                    ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:EmailSend configuration.");
+
+                var message = new VerificationEmailMessage
                 {
-                    var text = await response.Content.ReadAsStringAsync(cancellationToken);
-                    _logger.LogWarning("Notification POST {Path} returned {Status}: {Body}", path, response.StatusCode, text);
-                }
+                    Email = email,
+                    FullName = fullName,
+                    Token = token,
+                    UserId = recipientId
+                };
+
+                await _publisher.Publish(queueName, message);
+                _logger.LogInformation("Verification email queued for {Email}", email);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to POST notification to {Path}", path);
+                _logger.LogError(ex, "Failed to queue verification email to {Email}", email);
+                throw;
+            }
+        }
+
+        public async Task SendForgotPasswordEmail(string email, string fullName, string temporaryPassword, int? recipientId = null, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var queueName = _configuration["RabbitMQ:Queues:EmailSend"]
+                    ?? throw new InvalidOperationException("Missing RabbitMQ:Queues:EmailSend configuration.");
+
+                var message = new ForgotPasswordEmailMessage
+                {
+                    Email = email,
+                    FullName = fullName,
+                    TemporaryPassword = temporaryPassword,
+                    UserId = recipientId
+                };
+
+                await _publisher.Publish(queueName, message);
+                _logger.LogInformation("Forgot password email queued for {Email}", email);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue forgot password email to {Email}", email);
+                throw;
             }
         }
     }

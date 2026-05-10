@@ -5,6 +5,8 @@ using System.Text;
 using AuthService.Data;
 using AuthService.Helpers.Implementations;
 using AuthService.Helpers.Interfaces;
+using AuthService.Messaging;
+using AuthService.Messaging.Messages;
 using AuthService.Models;
 using AuthService.Models.Dtos;
 using AuthService.Repositories;
@@ -27,6 +29,8 @@ namespace AuthService.Services
         private readonly IGoogleAuthService _googleAuthService;
         private readonly AuthDbContext _dbContext;
         private readonly IStorageService _storageService;
+        private readonly IRabbitMqPublisher _rabbitMqPublisher;
+        private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             IUserRepository userRepository,
@@ -37,7 +41,9 @@ namespace AuthService.Services
             INotificationDispatcher notificationDispatcher,
             IStorageService storageService,
             IGoogleAuthService googleAuthService,
-            AuthDbContext dbContext)
+            AuthDbContext dbContext,
+            IRabbitMqPublisher rabbitMqPublisher,
+            ILogger<AuthService> logger)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
@@ -48,62 +54,54 @@ namespace AuthService.Services
             _storageService = storageService;
             _googleAuthService = googleAuthService;
             _dbContext = dbContext;
+            _rabbitMqPublisher = rabbitMqPublisher;
+            _logger = logger;
         }
 
         public async Task<RegisterResponse> Register(RegisterRequest request)
         {
-            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var email = request.Email.Trim().ToLowerInvariant();
+            var phone = request.Phone.Trim();
             var role = request.Role.Trim().ToUpperInvariant();
 
             if (!AllowedRoles.Contains(role))
-            {
-                throw new AppException("Role must be one of DRIVER, MANAGER, or ADMIN.", StatusCodes.Status400BadRequest);
-            }
+                throw new AppException("Invalid role.", 400);
 
-            if (await _userRepository.ExistsByEmail(normalizedEmail))
-            {
-                throw new AppException("Email already exists.", StatusCodes.Status409Conflict);
-            }
+            if (await _userRepository.ExistsByEmail(email))
+                throw new AppException("Email already exists.", 409);
 
-            var phoneOwner = await _userRepository.FindByPhone(request.Phone.Trim());
-            if (phoneOwner != null)
-            {
-                throw new AppException("Phone already exists.", StatusCodes.Status409Conflict);
-            }
+            if (await _userRepository.FindByPhone(phone) != null)
+                throw new AppException("Phone already exists.", 409);
 
             var user = _mapper.Map<User>(request);
-            user.Email = normalizedEmail;
-            user.PasswordHash = _passwordHasher.HashPassword(request.Password);
-            user.Phone = request.Phone.Trim();
+
+            user.Email = email;
+            user.Phone = phone;
             user.Role = role;
+            user.PasswordHash = _passwordHasher.HashPassword(request.Password);
             user.VehiclePlate = request.VehiclePlate.Trim().ToUpperInvariant();
+
             user.EmailVerified = false;
-            user.EmailVerificationToken = CreateVerificationToken();
-            user.EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
             user.IsActive = true;
             user.CreatedAt = DateTime.UtcNow;
 
-            var created = await _userRepository.Create(user);
+            user.EmailVerificationToken = CreateVerificationToken();
+            user.EmailVerificationTokenExpiresAt = DateTime.UtcNow.AddHours(24);
 
-            if (request.ProfilePic != null && request.ProfilePic.Length > 0)
-            {
-                await using var stream = request.ProfilePic.OpenReadStream();
-                var pictureUrl = await _storageService.UploadProfilePicture(
-                    stream,
-                    request.ProfilePic.FileName,
-                    string.IsNullOrWhiteSpace(request.ProfilePic.ContentType) ? "application/octet-stream" : request.ProfilePic.ContentType,
-                    created.UserId);
+            var createdUser = await _userRepository.Create(user);
 
-                created.ProfilePicUrl = pictureUrl;
-                await _userRepository.Update(created);
-            }
+            await UploadProfilePicture(createdUser, request.ProfilePic);
 
-            await _notificationDispatcher.SendVerificationEmail(created.Email, created.FullName, created.EmailVerificationToken!, created.UserId);
+            await _notificationDispatcher.SendVerificationEmail(
+                createdUser.Email,
+                createdUser.FullName,
+                createdUser.EmailVerificationToken!,
+                createdUser.UserId);
 
             return new RegisterResponse
             {
-                Message = "Registration successful. Please verify your email before logging in.",
-                User = _mapper.Map<UserResponse>(created)
+                Message = "Registration successful.",
+                User = _mapper.Map<UserResponse>(createdUser)
             };
         }
 
@@ -206,33 +204,6 @@ namespace AuthService.Services
             if (activeTokens.Count > 0)
             {
                 await _dbContext.SaveChangesAsync();
-            }
-        }
-
-        public bool ValidateToken(string token)
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(GetJwtValue("Jwt:Key"));
-
-            try
-            {
-                tokenHandler.ValidateToken(token, new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = true,
-                    ValidIssuer = GetJwtValue("Jwt:Issuer"),
-                    ValidateAudience = true,
-                    ValidAudience = GetJwtValue("Jwt:Audience"),
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(1)
-                }, out _);
-
-                return true;
-            }
-            catch
-            {
-                return false;
             }
         }
 
@@ -471,6 +442,47 @@ namespace AuthService.Services
                 User = _mapper.Map<UserResponse>(user)
             };
         }
+
+       private async Task UploadProfilePicture(User user, IFormFile? profilePic)
+{
+    if (profilePic == null || profilePic.Length == 0)
+        return;
+
+    var queueName = _configuration["RabbitMQ:Queues:ProfilePictureUpload"];
+
+    try
+    {
+        await using var stream = profilePic.OpenReadStream();
+
+        using var memoryStream = new MemoryStream();
+
+        await stream.CopyToAsync(memoryStream);
+
+        var message = new ProfilePictureUploadRequestedMessage
+        {
+            UserId = user.UserId,
+            FileName = profilePic.FileName,
+            ContentType = profilePic.ContentType ?? "application/octet-stream",
+            Base64Content = Convert.ToBase64String(memoryStream.ToArray())
+        };
+
+        await _rabbitMqPublisher.Publish(queueName!, message);
+    }
+    catch
+    {
+        await using var stream = profilePic.OpenReadStream();
+
+        var imageUrl = await _storageService.UploadProfilePicture(
+            stream,
+            profilePic.FileName,
+            profilePic.ContentType ?? "application/octet-stream",
+            user.UserId);
+
+        user.ProfilePicUrl = imageUrl;
+
+        await _userRepository.Update(user);
+    }
+}
 
         private string GetJwtValue(string key)
         {

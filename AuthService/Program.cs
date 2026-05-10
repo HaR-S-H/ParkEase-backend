@@ -2,6 +2,8 @@ using System.Text;
 using AuthService.Data;
 using AuthService.Helpers.Implementations;
 using AuthService.Helpers.Interfaces;
+using AuthService.Messaging;
+using AuthService.Messaging.Consumers;
 using AuthService.Mappings;
 using AuthService.Models;
 using AuthService.Repositories;
@@ -65,14 +67,9 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<IStorageService, S3StorageService>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-builder.Services.AddHttpClient<INotificationDispatcher, NotificationDispatcher>(client =>
-{
-    var baseUrl = builder.Configuration["ServiceUrls:NotificationService"]
-        ?? throw new InvalidOperationException("Missing configuration key: ServiceUrls:NotificationService");
-
-    client.BaseAddress = new Uri(baseUrl.TrimEnd('/'));
-    client.Timeout = TimeSpan.FromSeconds(6);
-});
+builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+builder.Services.AddHostedService<ProfilePictureUploadConsumer>();
+builder.Services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
 builder.Services.AddScoped<IAuthService, AuthService.Services.AuthService>();
 
 var app = builder.Build();
@@ -121,19 +118,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Apply pending EF Core migrations
-try
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
-        await db.Database.MigrateAsync();
-    }
-}
-catch (Exception ex)
-{
-    app.Logger.LogError($"Failed to apply migrations: {ex.Message}");
-}
 
 app.Run();

@@ -9,7 +9,6 @@ namespace AuthService.Services
         Task<LoginResponse> Login(LoginRequest request);
         Task<LoginResponse> GoogleLogin(GoogleLoginRequest request);
         Task Logout(int userId);
-        bool ValidateToken(string token);
         Task<LoginResponse> RefreshToken(string refreshToken);
         Task VerifyEmail(VerifyEmailRequest request);
         Task ResendVerification(ResendVerificationRequest request);

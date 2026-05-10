@@ -129,13 +129,6 @@ namespace AuthService.Controllers
             return Ok(new { message = "Account deactivated successfully." });
         }
 
-        [HttpPost("validate")]
-        public IActionResult ValidateToken([FromBody] string token)
-        {
-            var isValid = _authService.ValidateToken(token);
-            return Ok(new { isValid });
-        }
-
         private int GetCurrentUserId()
         {
             var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
