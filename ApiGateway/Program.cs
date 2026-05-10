@@ -7,7 +7,8 @@ builder.Services.AddCors(options =>
 			"https://gilded-chaja-6d09f4.netlify.app",
 			"https://parkease-apigateway.onrender.com")
 			.AllowAnyHeader()
-			.AllowAnyMethod());
+			.AllowAnyMethod()
+			.AllowCredentials());
 });
 
 builder.Services.AddReverseProxy()
