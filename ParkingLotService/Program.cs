@@ -14,7 +14,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(
+            "http://localhost:4200",
+            "https://gilded-chaja-6d09f4.netlify.app",
+            "https://parkease-apigateway.onrender.com")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
