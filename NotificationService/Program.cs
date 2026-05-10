@@ -22,7 +22,7 @@ builder.Services.AddDbContext<NotificationDbContext>(options =>
 
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService.Services.NotificationService>();
-builder.Services.AddScoped<IEmailSender, MailKitEmailSender>();
+builder.Services.AddHttpClient<IEmailSender, ResendEmailSender>();
 builder.Services.AddScoped<ISmsSender, TwilioSmsSender>();
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 builder.Services.AddHostedService<EmailVerificationConsumer>();
